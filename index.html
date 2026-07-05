@@ -69,13 +69,11 @@
     text-transform: uppercase; margin-bottom: 14px;
   }
 
-  /* ── Verdict card ── */
   .verdict-card {
     grid-column: 1 / -1;
     text-align: center; padding: 28px;
   }
 
-  /* Operational Mode Badge */
   .mode-indicator {
     display: inline-flex; font-size: 10px; font-weight: 700;
     letter-spacing: 1px; text-transform: uppercase;
@@ -97,7 +95,6 @@
 
   .verdict-meta { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; font-family: monospace; }
 
-  /* ── Sensor channels ── */
   .sensor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 
   .ch {
@@ -207,7 +204,6 @@
     $("logBox").scrollTop = $("logBox").scrollHeight;
   }
 
-  // CHANGED: Connects explicitly to your live production server address
   const socket = io("https://atom-backend.onrender.com", {
     query: { role: "audience" },
     transports: ["websocket"]
@@ -228,7 +224,6 @@
     resetToIdle();
   });
 
-  // CHANGED: Listens for the correct backend sync event 'operator_scanning'
   socket.on("operator_scanning", (data) => {
     $("modeIndicator").style.display = "inline-flex";
     if (data && data.mode === "AUTO_DETECT") {
@@ -243,7 +238,6 @@
     log("Mirror Sync: Sweep routine active on operator console.", "warn");
   });
 
-  // CHANGED: Listens for the correct backend sync event 'scan_countdown'
   socket.on("scan_countdown", (data) => {
     if (data.timeLeft > 0) {
       $("verdictBadge").textContent = `⏳ Scanning... ${data.timeLeft}s remaining`;
@@ -270,20 +264,18 @@
     }
   });
 
-  // CHANGED: Listens for the correct backend sync event 'verdict_broadcast'
-  socket.on("verdict_broadcast", (data) => {
+  // FIXED: Synchronized cleanly with operator payload event names
+  socket.on("verdict", (data) => {
     const badge = $("verdictBadge");
     $("modeIndicator").style.display = "inline-flex";
 
     if (data.mode === "AUTO") {
-      // Auto-Detect Verdict Parsing
       $("modeIndicator").textContent = "✨ Auto-Detect Result";
-      badge.className = `verdict-badge ${result.genuine ? "genuine" : "suspect"}`;
-      badge.textContent = data.genuine ? `✓ DETECTED — ${data.drug}` : `✗ UNKNOWN — Counterfeit Flagged`;
+      badge.className = `verdict-badge ${data.verdict === 'GENUINE' ? "genuine" : "suspect"}`;
+      badge.textContent = data.verdict === 'GENUINE' ? `✓ DETECTED — ${data.drug}` : `✗ UNKNOWN — Counterfeit Flagged`;
       $("verdictMeta").textContent = `Distance: ${data.distance} | Threshold: ${data.threshold} | Predicted Profile Match`;
-      log(`Analysis Core (Auto): Output verdict received — Match: ${data.drug}`, data.genuine ? "ok" : "err");
+      log(`Analysis Core (Auto): Output verdict received — Match: ${data.drug}`, data.verdict === 'GENUINE' ? "ok" : "err");
     } else {
-      // Targeted Verification Verdict Parsing
       $("modeIndicator").textContent = "🔍 Targeted Audit Result";
       if (data.mismatch) {
         badge.className = "verdict-badge suspect";
@@ -291,10 +283,10 @@
         $("verdictMeta").textContent = `Expected: ${data.drug} | Found Chemical Signature: ${data.actualFound}`;
         log(`Analysis Core (Targeted): CRITICAL MISMATCH — Labeled as ${data.drug} but matches ${data.actualFound}!`, "err");
       } else {
-        badge.className = `verdict-badge ${data.genuine ? "genuine" : "suspect"}`;
-        badge.textContent = data.genuine ? `✓ VERIFIED — Authentic` : `✗ SUSPECT — Profile Anomaly`;
+        badge.className = `verdict-badge ${data.verdict === 'GENUINE' ? "genuine" : "suspect"}`;
+        badge.textContent = data.verdict === 'GENUINE' ? `✓ VERIFIED — Authentic` : `✗ SUSPECT — Profile Anomaly`;
         $("verdictMeta").textContent = `Target: ${data.drug} | Variance Distance: ${data.distance} | Threshold Limit: ${data.threshold}`;
-        log(`Analysis Core (Targeted): Target asset ${data.drug} verification loop resolved.`, data.genuine ? "ok" : "err");
+        log(`Analysis Core (Targeted): Target asset ${data.drug} verification loop resolved.`, data.verdict === 'GENUINE' ? "ok" : "err");
       }
     }
   });
