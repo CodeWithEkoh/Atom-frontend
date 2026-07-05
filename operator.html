@@ -215,7 +215,7 @@
     <label>Relay Server URL:</label>
     <input type="text" id="serverUrl"
       placeholder="https://your-app.render.com"
-      value="http://localhost:3000"/>
+      value="https://atom-5r4p.onrender.com"/>
     <button class="btn btn-teal" id="btnSocketConnect">Connect to Server</button>
     <button class="btn btn-red"  id="btnSocketDisconnect" disabled>Disconnect</button>
   </div>
@@ -512,7 +512,7 @@
   }
   
   $("btnSocketConnect").addEventListener("click", () => {
-    const url = $("serverUrl").value.trim() || "http://localhost:3000"; 
+    const url = $("serverUrl").value.trim() || "https://atom-5r4p.onrender.com"; 
   
     socket = io(url, {
       query: { role: "operator" },
