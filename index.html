@@ -75,6 +75,15 @@
     text-align: center; padding: 28px;
   }
 
+  /* Operational Mode Badge */
+  .mode-indicator {
+    display: inline-flex; font-size: 10px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    background: rgba(255,255,255,0.05); padding: 4px 12px;
+    border-radius: 999px; margin-bottom: 12px; color: rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
   .verdict-badge {
     display: inline-flex; align-items: center; gap: 10px;
     padding: 12px 32px; border-radius: 999px;
@@ -146,6 +155,8 @@
 
   <div class="card verdict-card">
     <div class="card-label">Live Broadcast Stream Verdict</div>
+    <div id="modeIndicator" class="mode-indicator" style="display: none;">System Idle</div>
+    <br/>
     <div class="verdict-badge idle" id="verdictBadge">⬡ Awaiting Scan Trigger</div>
     <div class="verdict-meta" id="verdictMeta">The operator has not initiated a validation sequence yet.</div>
   </div>
@@ -196,8 +207,8 @@
     $("logBox").scrollTop = $("logBox").scrollHeight;
   }
 
-  // Points automatically to your backend network pipeline
-  const socket = io("http://localhost:3000", {
+  // CHANGED: Connects explicitly to your live production server address
+  const socket = io("https://atom-backend.onrender.com", {
     query: { role: "audience" },
     transports: ["websocket"]
   });
@@ -217,16 +228,23 @@
     resetToIdle();
   });
 
-  // Synced perfectly with operator.html 'scanning_start'
-  socket.on("scanning_start", () => {
+  // CHANGED: Listens for the correct backend sync event 'operator_scanning'
+  socket.on("operator_scanning", (data) => {
+    $("modeIndicator").style.display = "inline-flex";
+    if (data && data.mode === "AUTO_DETECT") {
+      $("modeIndicator").textContent = "✨ Auto-Detect (AI Mode) Active";
+    } else {
+      $("modeIndicator").textContent = "🔍 Targeted Audit Verification Active";
+    }
+
     $("verdictBadge").className = "verdict-badge scanning";
-    $("verdictBadge").textContent = "⏳ Initializing Sweep (10s)...";
-    $("verdictMeta").textContent = "Acquiring core data array configurations from edge-hardware layers...";
+    $("verdictBadge").textContent = "⏳ Running Molecular Scan (10s)...";
+    $("verdictMeta").textContent = "Acquiring real-time core data array configurations from edge layers...";
     log("Mirror Sync: Sweep routine active on operator console.", "warn");
   });
 
-  // Synced perfectly with operator.html 'scanning_countdown' 
-  socket.on("scanning_countdown", (data) => {
+  // CHANGED: Listens for the correct backend sync event 'scan_countdown'
+  socket.on("scan_countdown", (data) => {
     if (data.timeLeft > 0) {
       $("verdictBadge").textContent = `⏳ Scanning... ${data.timeLeft}s remaining`;
     }
@@ -252,22 +270,37 @@
     }
   });
 
-  // Synced perfectly with operator.html 'verdict'
-  socket.on("verdict", (data) => {
+  // CHANGED: Listens for the correct backend sync event 'verdict_broadcast'
+  socket.on("verdict_broadcast", (data) => {
     const badge = $("verdictBadge");
-    if (data.verdict === "GENUINE") {
-      badge.className = "verdict-badge genuine";
-      badge.textContent = `✓ GENUINE — ${data.drug}`;
-      log(`Analysis Core: Verified ${data.drug} (${data.brand}) within safe tolerance limits.`, "ok");
+    $("modeIndicator").style.display = "inline-flex";
+
+    if (data.mode === "AUTO") {
+      // Auto-Detect Verdict Parsing
+      $("modeIndicator").textContent = "✨ Auto-Detect Result";
+      badge.className = `verdict-badge ${result.genuine ? "genuine" : "suspect"}`;
+      badge.textContent = data.genuine ? `✓ DETECTED — ${data.drug}` : `✗ UNKNOWN — Counterfeit Flagged`;
+      $("verdictMeta").textContent = `Distance: ${data.distance} | Threshold: ${data.threshold} | Predicted Profile Match`;
+      log(`Analysis Core (Auto): Output verdict received — Match: ${data.drug}`, data.genuine ? "ok" : "err");
     } else {
-      badge.className = "verdict-badge suspect";
-      badge.textContent = `✗ SUSPECT — Counterfeit Out of Bounds`;
-      log("Analysis Core: Verification failure. Out-of-bounds anomaly identified.", "err");
+      // Targeted Verification Verdict Parsing
+      $("modeIndicator").textContent = "🔍 Targeted Audit Result";
+      if (data.mismatch) {
+        badge.className = "verdict-badge suspect";
+        badge.textContent = `⚠️ MISMATCH — Box Swapped`;
+        $("verdictMeta").textContent = `Expected: ${data.drug} | Found Chemical Signature: ${data.actualFound}`;
+        log(`Analysis Core (Targeted): CRITICAL MISMATCH — Labeled as ${data.drug} but matches ${data.actualFound}!`, "err");
+      } else {
+        badge.className = `verdict-badge ${data.genuine ? "genuine" : "suspect"}`;
+        badge.textContent = data.genuine ? `✓ VERIFIED — Authentic` : `✗ SUSPECT — Profile Anomaly`;
+        $("verdictMeta").textContent = `Target: ${data.drug} | Variance Distance: ${data.distance} | Threshold Limit: ${data.threshold}`;
+        log(`Analysis Core (Targeted): Target asset ${data.drug} verification loop resolved.`, data.genuine ? "ok" : "err");
+      }
     }
-    $("verdictMeta").textContent = `Distance Error: ${data.distance} | Target System Threshold Baseline Limit: ${data.threshold}`;
   });
 
   function resetToIdle() {
+    $("modeIndicator").style.display = "none";
     $("verdictBadge").className = "verdict-badge idle";
     $("verdictBadge").textContent = "⬡ Awaiting Scan Trigger";
     $("verdictMeta").textContent = "The operator has not initiated a validation sequence yet.";
