@@ -69,7 +69,6 @@
     text-transform: uppercase; margin-bottom: 14px;
   }
 
-  /* ── Connect row ── */
   .connect-row {
     grid-column: 1 / -1;
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
@@ -102,15 +101,12 @@
   .btn-amber   { background: var(--amber); color: #fff; }
   .btn-amber:hover { background: #b45309; }
   .btn-amber:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-red     { background: rgba(220,38,38,0.15); color: #FCA5A5;
-                  border: 1px solid rgba(220,38,38,0.3); }
+  .btn-red     { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
   .btn-red:hover { background: rgba(220,38,38,0.25); }
   .btn-red:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-outline { background: transparent; color: rgba(255,255,255,0.5);
-                  border: 1px solid rgba(255,255,255,0.15); }
+  .btn-outline { background: transparent; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15); }
   .btn-outline:hover { background: rgba(255,255,255,0.06); }
 
-  /* ── Server URL input ── */
   .server-input-row {
     grid-column: 1 / -1;
     display: flex; align-items: center; gap: 12px;
@@ -124,7 +120,6 @@
   }
   .server-input-row input:focus { outline: none; border-color: var(--teal); }
 
-  /* ── Verdict card ── */
   .verdict-card {
     grid-column: 1 / -1;
     text-align: center; padding: 28px;
@@ -137,20 +132,13 @@
     transition: all 0.35s; margin-bottom: 10px;
   }
   .verdict-badge.idle     { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.25); font-size: 15px; }
-  .verdict-badge.genuine  { background: rgba(22,163,74,0.2);  color: #4ADE80;
-                             border: 2px solid rgba(22,163,74,0.5);
-                             box-shadow: 0 0 40px rgba(22,163,74,0.25); }
-  .verdict-badge.failed-match { background: rgba(220,38,38,0.2);  color: #F87171;
-                             border: 2px solid rgba(220,38,38,0.5);
-                             box-shadow: 0 0 40px rgba(220,38,38,0.25); }
-  .verdict-badge.scanning { background: rgba(217,119,6,0.15); color: var(--amber);
-                             border: 2px solid rgba(217,119,6,0.4); 
-                             box-shadow: 0 0 20px rgba(217,119,6,0.15); }
+  .verdict-badge.genuine  { background: rgba(22,163,74,0.2);  color: #4ADE80; border: 2px solid rgba(22,163,74,0.5); box-shadow: 0 0 40px rgba(22,163,74,0.25); }
+  .verdict-badge.failed-match { background: rgba(220,38,38,0.2);  color: #F87171; border: 2px solid rgba(220,38,38,0.5); box-shadow: 0 0 40px rgba(220,38,38,0.25); }
+  .verdict-badge.scanning { background: rgba(217,119,6,0.15); color: var(--amber); border: 2px solid rgba(217,119,6,0.4); box-shadow: 0 0 20px rgba(217,119,6,0.15); }
 
   .verdict-meta { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; font-family: monospace; }
   .audience-count { font-size: 12px; color: var(--teal); margin-top: 8px; font-weight: 600; }
 
-  /* ── Sensor channels ── */
   .sensor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 
   .ch {
@@ -171,16 +159,13 @@
   .ch-B .ch-bar-fill { background: #60A5FA; }
   .ch-C .ch-bar-fill { background: rgba(255,255,255,0.35); }
 
-  /* ── Color preview ── */
   .color-swatch {
     height: 70px; border-radius: 10px; background: #1E293B;
     border: 1px solid var(--border); margin-top: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; color: rgba(255,255,255,0.3);
-    transition: background 0.3s;
+    font-size: 11px; color: rgba(255,255,255,0.3); transition: background 0.3s;
   }
 
-  /* ── Log ── */
   .log {
     background: rgba(0,0,0,0.35); border-radius: 8px;
     padding: 10px 12px; height: 150px; overflow-y: auto;
@@ -215,7 +200,7 @@
     <label>Relay Server URL:</label>
     <input type="text" id="serverUrl"
       placeholder="https://your-app.render.com"
-      value="https://atom-5r4p.onrender.com"/>
+      value="https://atom-backend.onrender.com"/>
     <button class="btn btn-teal" id="btnSocketConnect">Connect to Server</button>
     <button class="btn btn-red"  id="btnSocketDisconnect" disabled>Disconnect</button>
   </div>
@@ -299,7 +284,6 @@
     const select = $("drugSelect");
     select.innerHTML = "";
     
-    // Add the WOW-FACTOR option at index 0
     const defaultOpt = document.createElement("option");
     defaultOpt.value = "AUTO_DETECT";
     defaultOpt.textContent = "✨ Auto-Detect (AI Mode)";
@@ -331,9 +315,7 @@
     );
   }
   
-  // CORE HYBRID OPERATION PROCESSING ROUTINE
   function processScanMatrix(live, modeSelection) {
-    // 1. Blind evaluation scan to find the actual match
     let absoluteBestRef = null, structuralMinimumDist = Infinity;
     REFERENCE_DB.forEach(ref => {
       const d = euclidean(live, ref);
@@ -346,7 +328,6 @@
     const calculatedDistance = +structuralMinimumDist.toFixed(1);
     const passesThreshold = structuralMinimumDist <= GENUINE_THRESHOLD;
 
-    // Condition A: Mode is Auto-Detect (Wow Mode)
     if (modeSelection === "AUTO_DETECT") {
       return {
         mode: "AUTO",
@@ -357,14 +338,12 @@
       };
     }
 
-    // Condition B: Mode is Targeted Audit (Real Application Mode)
     const targetRef = REFERENCE_DB.find(item => item.id === modeSelection);
     const targetedDistance = +euclidean(live, targetRef).toFixed(1);
     
     if (absoluteBestRef.id === targetRef.id && targetedDistance <= GENUINE_THRESHOLD) {
       return { mode: "TARGETED", drug: targetRef, distance: targetedDistance, genuine: true, mismatch: false };
     } else if (targetedDistance > GENUINE_THRESHOLD && calculatedDistance <= GENUINE_THRESHOLD) {
-      // Caught a look-alike mismatch switch error profile
       return { mode: "TARGETED", drug: targetRef, actualDrug: absoluteBestRef, distance: targetedDistance, genuine: false, mismatch: true };
     } else {
       return { mode: "TARGETED", drug: targetRef, distance: targetedDistance, genuine: false, mismatch: false };
@@ -381,10 +360,9 @@
         : `✗ UNKNOWN — Counterfeit Flagged`;
       $("verdictMeta").textContent = `Dist: ${result.distance} | Threshold: ${GENUINE_THRESHOLD} | Auto-Match: ${result.drug.name}`;
     } else {
-      // Targeted display workflows
       if (result.mismatch) {
         badge.className = "verdict-badge failed-match";
-        badge.textContent = `⚠️ UNKNOWN — Counterfeit Flagged`;
+        badge.textContent = `⚠️ MISMATCH — Box Swapped`;
         $("verdictMeta").textContent = `Expected: ${result.drug.name} | Found Chemical Signature: ${result.actualDrug.name}`;
       } else {
         badge.className = `verdict-badge ${result.genuine ? "genuine" : "failed-match"}`;
@@ -512,7 +490,7 @@
   }
   
   $("btnSocketConnect").addEventListener("click", () => {
-    const url = $("serverUrl").value.trim() || "https://atom-5r4p.onrender.com"; 
+    const url = $("serverUrl").value.trim() || "https://atom-backend.onrender.com"; 
   
     socket = io(url, {
       query: { role: "operator" },
@@ -660,7 +638,6 @@
     }
   }
   
-  // Fire layout initialization routines
   initializeDropdown();
   log("Operator console ready.", "info");
   log(`Reference DB: ${REFERENCE_DB.length} signatures active.`, "info");
