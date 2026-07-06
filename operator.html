@@ -133,7 +133,7 @@
   }
   .verdict-badge.idle     { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.25); font-size: 15px; }
   .verdict-badge.genuine  { background: rgba(22,163,74,0.2);  color: #4ADE80; border: 2px solid rgba(22,163,74,0.5); box-shadow: 0 0 40px rgba(22,163,74,0.25); }
-  .verdict-badge.failed-match { background: rgba(220,38,38,0.2);  color: #F87171; border: 2px solid rgba(220,38,38,0.5); box-shadow: 0 0 40px rgba(22,163,74,0.25); }
+  .verdict-badge.failed-match { background: rgba(220,38,38,0.2);  color: #F87171; border: 2px solid rgba(220,38,38,0.5); box-shadow: 0 0 40px rgba(220,38,38,0.25); }
   .verdict-badge.scanning { background: rgba(217,119,6,0.15); color: var(--amber); border: 2px solid rgba(217,119,6,0.4); box-shadow: 0 0 20px rgba(217,119,6,0.15); }
 
   .verdict-meta { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; font-family: monospace; }
@@ -277,6 +277,7 @@
   let scanTimer = null;
   let countdownInterval = null;
   const SCAN_DURATION = 10; 
+  let currentScanTimeLeft = 10; // Tracker variable
   
   const $ = id => document.getElementById(id);
 
@@ -411,11 +412,11 @@
       socket.emit("scanning_start", { mode: $("drugSelect").value });
     }
 
-    let timeLeft = SCAN_DURATION;
+    currentScanTimeLeft = SCAN_DURATION;
     countdownInterval = setInterval(() => {
-      timeLeft--;
-      if (timeLeft > 0) {
-        $("verdictBadge").textContent = `⏳ Scanning... ${timeLeft}s remaining`;
+      currentScanTimeLeft--;
+      if (currentScanTimeLeft > 0) {
+        $("verdictBadge").textContent = `⏳ Scanning... ${currentScanTimeLeft}s remaining`;
       }
     }, 1000);
 
@@ -476,11 +477,10 @@
   
     updateSensorUI(R, G, B, C);
   
-    if (socket && socket.connected) {
-      const currentBadgeText = $("verdictBadge").textContent;
-      const parsedTime = parseInt(currentBadgeText.replace(/[^0-9]/g, '')) || 0;
+    // FIXED: Blocks countdown packets from emitting if timer hits 0 to avoid screen lock overwrites
+    if (socket && socket.connected && currentScanTimeLeft > 0) {
       socket.emit("scanning_countdown", { 
-        timeLeft: Math.max(0, parsedTime),
+        timeLeft: currentScanTimeLeft,
         liveData: { R, G, B, C }
       });
     }
