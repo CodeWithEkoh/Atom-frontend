@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Atom Drug Guard — Projector Live Display</title>
+<title>Atom Drug Guard — Operator Console</title>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,8 +47,8 @@
   .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--slate); }
   .pill.ok   .dot { background: var(--green); box-shadow: 0 0 5px var(--green); }
   .pill.ok       { border-color: rgba(22,163,74,0.35); }
-  .pill.connecting .dot { background: var(--amber); }
-  .pill.connecting     { border-color: rgba(217,119,6,0.35); }
+  .pill.warn .dot { background: var(--amber); }
+  .pill.warn     { border-color: rgba(217,119,6,0.35); }
 
   main {
     flex: 1; padding: 22px 28px;
@@ -69,17 +69,60 @@
     text-transform: uppercase; margin-bottom: 14px;
   }
 
+  .connect-row {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+
+  .connect-row p {
+    flex: 1; font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.6;
+    min-width: 220px;
+  }
+  .connect-row p b { color: var(--teal); }
+
+  .btn-row { display: flex; gap: 10px; flex-shrink: 0; align-items: center; flex-wrap: wrap; }
+
+  .select-dropdown {
+    padding: 9px 14px; border-radius: 9px;
+    background: rgba(10, 22, 40, 0.8);
+    border: 1px solid var(--border); color: var(--white);
+    font-size: 13px; font-weight: 600; outline: none;
+    cursor: pointer; transition: border-color 0.2s;
+  }
+  .select-dropdown:focus { border-color: var(--teal); }
+
+  .btn {
+    padding: 9px 22px; border-radius: 9px; border: none;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-teal    { background: var(--teal); color: #fff; }
+  .btn-teal:hover { background: var(--teal2); }
+  .btn-teal:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-amber   { background: var(--amber); color: #fff; }
+  .btn-amber:hover { background: #b45309; }
+  .btn-amber:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-red     { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
+  .btn-red:hover { background: rgba(220,38,38,0.25); }
+  .btn-red:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-outline { background: transparent; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15); }
+  .btn-outline:hover { background: rgba(255,255,255,0.06); }
+
+  .server-input-row {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .server-input-row label { font-size: 12px; color: rgba(255,255,255,0.5); white-space: nowrap; }
+  .server-input-row input {
+    flex: 1; padding: 8px 14px; border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border); color: var(--white);
+    font-size: 13px; font-family: monospace;
+  }
+  .server-input-row input:focus { outline: none; border-color: var(--teal); }
+
   .verdict-card {
     grid-column: 1 / -1;
     text-align: center; padding: 28px;
-  }
-
-  .mode-indicator {
-    display: inline-flex; font-size: 10px; font-weight: 700;
-    letter-spacing: 1px; text-transform: uppercase;
-    background: rgba(255,255,255,0.05); padding: 4px 12px;
-    border-radius: 999px; margin-bottom: 12px; color: rgba(255,255,255,0.6);
-    border: 1px solid rgba(255,255,255,0.1);
   }
 
   .verdict-badge {
@@ -90,10 +133,11 @@
   }
   .verdict-badge.idle     { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.25); font-size: 15px; }
   .verdict-badge.genuine  { background: rgba(22,163,74,0.2);  color: #4ADE80; border: 2px solid rgba(22,163,74,0.5); box-shadow: 0 0 40px rgba(22,163,74,0.25); }
-  .verdict-badge.suspect  { background: rgba(220,38,38,0.2);  color: #F87171; border: 2px solid rgba(220,38,38,0.5); box-shadow: 0 0 40px rgba(220,38,38,0.25); }
+  .verdict-badge.failed-match { background: rgba(220,38,38,0.2);  color: #F87171; border: 2px solid rgba(220,38,38,0.5); box-shadow: 0 0 40px rgba(220,38,38,0.25); }
   .verdict-badge.scanning { background: rgba(217,119,6,0.15); color: var(--amber); border: 2px solid rgba(217,119,6,0.4); box-shadow: 0 0 20px rgba(217,119,6,0.15); }
 
   .verdict-meta { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; font-family: monospace; }
+  .audience-count { font-size: 12px; color: var(--teal); margin-top: 8px; font-weight: 600; }
 
   .sensor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 
@@ -129,7 +173,7 @@
     grid-column: 1 / -1;
   }
   .log .ll { margin-bottom: 2px; }
-  .log .ok { color: #4ADE80; } .log .err { color: #F87171; }
+  .log .ok   { color: #4ADE80; } .log .err  { color: #F87171; }
   .log .warn { color: #FCD34D; } .log .info { color: #60A5FA; }
 </style>
 </head>
@@ -137,177 +181,468 @@
 
 <header>
   <div class="brand">
-    <div class="brand-icon">📺</div>
+    <div class="brand-icon">💊</div>
     <div>
-      <h1>Atom Drug Guard — Projector View</h1>
-      <sub>Decentralized Live Broadcast Monitor Feed</sub>
+      <h1>Atom Drug Guard — Operator Console</h1>
+      <sub>Isaiah's Laptop · Edge Layer · Not visible to audience</sub>
     </div>
   </div>
   <div class="pills">
-    <div class="pill" id="socketPill"><div class="dot"></div><span id="socketTxt">Pipeline: Off</span></div>
+    <div class="pill" id="serialPill"><div class="dot"></div><span id="serialTxt">Serial: Off</span></div>
+    <div class="pill" id="socketPill"><div class="dot"></div><span id="socketTxt">Server: Off</span></div>
+    <div class="pill" id="audiencePill"><div class="dot"></div><span id="audienceTxt">Audience: 0</span></div>
   </div>
 </header>
 
 <main>
 
+  <div class="server-input-row">
+    <label>Relay Server URL:</label>
+    <input type="text" id="serverUrl"
+      placeholder="https://your-app.render.com"
+      value="https://atom-5r4p.onrender.com"/>
+    <button class="btn btn-teal" id="btnSocketConnect">Connect to Server</button>
+    <button class="btn btn-red"  id="btnSocketDisconnect" disabled>Disconnect</button>
+  </div>
+
+  <div class="connect-row">
+    <p>Select scan profile mode → click <b>Connect ESP32</b> → Click <b>Initiate Drug Scan</b> to run verification matrices.</p>
+    <div class="btn-row">
+      <select class="select-dropdown" id="drugSelect"></select>
+      <button class="btn btn-teal"   id="btnSerial">Connect ESP32</button>
+      <button class="btn btn-outline" id="btnSerialStop" disabled>Stop</button>
+      <button class="btn btn-amber" id="btnScan" disabled>Initiate Drug Scan</button>
+    </div>
+  </div>
+
   <div class="card verdict-card">
-    <div class="card-label">Live Broadcast Stream Verdict</div>
-    <div id="modeIndicator" class="mode-indicator" style="display: none;">System Idle</div>
-    <br/>
+    <div class="card-label">Live Verdict (Broadcasting to Audience)</div>
     <div class="verdict-badge idle" id="verdictBadge">⬡ Awaiting Scan Trigger</div>
-    <div class="verdict-meta" id="verdictMeta">The operator has not initiated a validation sequence yet.</div>
+    <div class="verdict-meta"  id="verdictMeta">Connect hardware layer and toggle scan profile</div>
+    <div class="audience-count" id="audienceInfo"></div>
   </div>
 
   <div class="card">
-    <div class="card-label">Live Sensor Telemetry Matrix</div>
+    <div class="card-label">Live Sensor Values</div>
     <div class="sensor-grid">
       <div class="ch ch-R">
-        <div class="ch-lbl">Red Channel</div>
+        <div class="ch-lbl">Red</div>
         <div class="ch-val" id="vR">—</div>
         <div class="ch-bar"><div class="ch-bar-fill" id="bR"></div></div>
       </div>
       <div class="ch ch-G">
-        <div class="ch-lbl">Green Channel</div>
+        <div class="ch-lbl">Green</div>
         <div class="ch-val" id="vG">—</div>
         <div class="ch-bar"><div class="ch-bar-fill" id="bG"></div></div>
       </div>
       <div class="ch ch-B">
-        <div class="ch-lbl">Blue Channel</div>
+        <div class="ch-lbl">Blue</div>
         <div class="ch-val" id="vB">—</div>
         <div class="ch-bar"><div class="ch-bar-fill" id="bB"></div></div>
       </div>
       <div class="ch ch-C">
-        <div class="ch-lbl">Clear Channel</div>
+        <div class="ch-lbl">Clear</div>
         <div class="ch-val" id="vC">—</div>
         <div class="ch-bar"><div class="ch-bar-fill" id="bC"></div></div>
       </div>
     </div>
-    <div class="color-swatch" id="swatch">Spectral Preview Window</div>
+    <div class="color-swatch" id="swatch">Color preview</div>
   </div>
 
   <div class="card" style="display: flex; flex-direction: column;">
-    <div class="card-label">Mirrored Execution Logs</div>
+    <div class="card-label">Core Atom Execution Logs</div>
     <div class="log" id="logBox" style="flex: 1; height: auto;"></div>
   </div>
 
 </main>
 
 <script>
+  const REFERENCE_DB = [
+    { id: "M$B_paracetamol_500mg", name: "M$B Paracetamol 500mg", brand: "Emzor", dotColor: "#E2E8F0", R: 5000, G: 2981, B: 1974, C: 9927 },
+    { id: "Emzor_Vitamin_C_100mg", name: "Emzor Vitamin C 100mg", brand: "Emzor", dotColor: "#F8FAFC", R: 2312, G: 1539, B: 1048, C: 5208 },
+    { id: "coartem_artemether", name: "Coartem (Artemether/Lumefantrine)", brand: "Novartis", dotColor: "#D4B44A", R: 3200, G: 2900, B: 1400, C: 8800 }
+  ];
+  
+  const GENUINE_THRESHOLD = 1500;
+  const BUFFER_SIZE       = 10; 
+  
+  const buffer = [];
+  let serialPort   = null;
+  let serialReader = null;
+  let keepReading  = false;
+  let socket       = null;
+  let audienceCount = 0;
+
+  let isScanning = false;
+  let scanTimer = null;
+  let countdownInterval = null;
+  const SCAN_DURATION = 10; 
+  let currentScanTimeLeft = 10; // Tracker variable
+  
   const $ = id => document.getElementById(id);
 
+  function initializeDropdown() {
+    const select = $("drugSelect");
+    select.innerHTML = "";
+    
+    const defaultOpt = document.createElement("option");
+    defaultOpt.value = "AUTO_DETECT";
+    defaultOpt.textContent = "✨ Auto-Detect (AI Mode)";
+    select.appendChild(defaultOpt);
+
+    REFERENCE_DB.forEach(ref => {
+      const opt = document.createElement("option");
+      opt.value = ref.id;
+      opt.textContent = `🔍 Target: ${ref.name}`;
+      select.appendChild(opt);
+    });
+  }
+  
   function log(msg, type = "info") {
-    const t = new Date().toLocaleTimeString("en-GB", { hour12: false });
+    const t   = new Date().toLocaleTimeString("en-GB", { hour12: false });
     const div = document.createElement("div");
-    div.className = `ll ${type}`;
+    div.className  = `ll ${type}`;
     div.textContent = `[${t}] ${msg}`;
     $("logBox").appendChild(div);
     $("logBox").scrollTop = $("logBox").scrollHeight;
   }
-
-  // Pointing to your custom server configuration cluster
-  const socket = io("https://atom-5r4p.onrender.com", {
-    query: { role: "audience" },
-    transports: ["websocket"]
-  });
-
-  $("socketPill").className = "pill connecting";
-  $("socketTxt").textContent = "Pipeline: Connecting...";
-
-  socket.on("connect", () => {
-    $("socketPill").className = "pill ok";
-    $("socketTxt").textContent = "Pipeline: Live Mirror Link";
-    log("Projector Engine: Multi-node display link synchronized securely with data pipelines.", "ok");
-  });
-
-  socket.on("disconnect", () => {
-    $("socketPill").className = "pill";
-    $("socketTxt").textContent = "Pipeline: Off";
-    resetToIdle();
-  });
-
-  socket.on("operator_scanning", (data) => {
-    $("modeIndicator").style.display = "inline-flex";
-    if (data && data.mode === "AUTO_DETECT") {
-      $("modeIndicator").textContent = "✨ Auto-Detect (AI Mode) Active";
-    } else {
-      $("modeIndicator").textContent = "🔍 Targeted Audit Verification Active";
-    }
-
-    $("verdictBadge").className = "verdict-badge scanning";
-    $("verdictBadge").textContent = "⏳ Running Molecular Scan (10s)...";
-    $("verdictMeta").textContent = "Acquiring real-time core data array configurations from edge layers...";
-    log("Mirror Sync: Sweep routine active on operator console.", "warn");
-  });
-
-  socket.on("scan_countdown", (data) => {
-    if (data.timeLeft > 0) {
-      $("verdictBadge").textContent = `⏳ Scanning... ${data.timeLeft}s remaining`;
-    }
+  
+  function euclidean(live, ref) {
+    return Math.sqrt(
+      (live.R - ref.R) ** 2 +
+      (live.G - ref.G) ** 2 +
+      (live.B - ref.B) ** 2 +
+      (live.C - ref.C) ** 2
+    );
+  }
+  
+  function processScanMatrix(live, modeSelection) {
+    let absoluteBestRef = null, structuralMinimumDist = Infinity;
+    REFERENCE_DB.forEach(ref => {
+      const d = euclidean(live, ref);
+      if (d < structuralMinimumDist) { 
+        structuralMinimumDist = d; 
+        absoluteBestRef = ref; 
+      }
+    });
     
-    if (data.liveData) {
-      const { R, G, B, C } = data.liveData;
-      $("vR").textContent = R; 
-      $("vG").textContent = G;
-      $("vB").textContent = B; 
-      $("vC").textContent = C;
-      
-      const max = Math.max(C, 1);
-      $("bR").style.width = `${Math.min(R / max * 100, 100)}%`;
-      $("bG").style.width = `${Math.min(G / max * 100, 100)}%`;
-      $("bB").style.width = `${Math.min(B / max * 100, 100)}%`;
-      $("bC").style.width = `${Math.min(C / 65535 * 100, 100)}%`;
-      
-      const sc = Math.min(255 / max, 1) * (C / 65535 * 6 + 0.5);
-      const r8 = Math.min(Math.round(R * sc), 255);
-      const g8 = Math.min(Math.round(G * sc), 255);
-      const b8 = Math.min(Math.round(B * sc), 255);
-      $("swatch").style.background = `rgb(${r8},${g8},${b8})`;
-      $("swatch").textContent = `rgb(${r8}, ${g8}, ${b8})`;
-      $("swatch").style.color = (r8 + g8 + b8 > 380) ? "#000" : "#fff";
+    const calculatedDistance = +structuralMinimumDist.toFixed(1);
+    const passesThreshold = structuralMinimumDist <= GENUINE_THRESHOLD;
+
+    if (modeSelection === "AUTO_DETECT") {
+      return {
+        mode: "AUTO",
+        drug: absoluteBestRef,
+        distance: calculatedDistance,
+        genuine: passesThreshold,
+        mismatch: false
+      };
     }
-  });
 
-  // FIXED: Spelling variables renamed from 'result' parameters back to incoming argument scope 'data'
-  socket.on("verdict", (data) => {
-    const badge = $("verdictBadge");
-    $("modeIndicator").style.display = "inline-flex";
-
-    if (data.mode === "AUTO") {
-      $("modeIndicator").textContent = "✨ Auto-Detect Result";
-      badge.className = `verdict-badge ${data.verdict === 'GENUINE' ? "genuine" : "suspect"}`;
-      badge.textContent = data.verdict === 'GENUINE' ? `✓ DETECTED — ${data.drug}` : `✗ UNKNOWN — Counterfeit Flagged`;
-      $("verdictMeta").textContent = `Distance: ${data.distance} | Threshold: ${data.threshold} | Predicted Profile Match`;
-      log(`Analysis Core (Auto): Output verdict received — Match: ${data.drug}`, data.verdict === 'GENUINE' ? "ok" : "err");
+    const targetRef = REFERENCE_DB.find(item => item.id === modeSelection);
+    const targetedDistance = +euclidean(live, targetRef).toFixed(1);
+    
+    if (absoluteBestRef.id === targetRef.id && targetedDistance <= GENUINE_THRESHOLD) {
+      return { mode: "TARGETED", drug: targetRef, distance: targetedDistance, genuine: true, mismatch: false };
+    } else if (targetedDistance > GENUINE_THRESHOLD && calculatedDistance <= GENUINE_THRESHOLD) {
+      return { mode: "TARGETED", drug: targetRef, actualDrug: absoluteBestRef, distance: targetedDistance, genuine: false, mismatch: true };
     } else {
-      $("modeIndicator").textContent = "🔍 Targeted Audit Result";
-      if (data.mismatch) {
-        badge.className = "verdict-badge suspect";
+      return { mode: "TARGETED", drug: targetRef, distance: targetedDistance, genuine: false, mismatch: false };
+    }
+  }
+  
+  function updateVerdictUI(result) {
+    const badge = $("verdictBadge");
+    
+    if (result.mode === "AUTO") {
+      badge.className = `verdict-badge ${result.genuine ? "genuine" : "failed-match"}`;
+      badge.textContent = result.genuine
+        ? `✓ DETECTED — ${result.drug.name}`
+        : `✗ UNKNOWN — Counterfeit Flagged`;
+      $("verdictMeta").textContent = `Dist: ${result.distance} | Threshold: ${GENUINE_THRESHOLD} | Auto-Match: ${result.drug.name}`;
+    } else {
+      if (result.mismatch) {
+        badge.className = "verdict-badge failed-match";
         badge.textContent = `⚠️ MISMATCH — Box Swapped`;
-        $("verdictMeta").textContent = `Expected: ${data.drug} | Found Chemical Signature: ${data.actualFound}`;
-        log(`Analysis Core (Targeted): CRITICAL MISMATCH — Labeled as ${data.drug} but matches ${data.actualFound}!`, "err");
+        $("verdictMeta").textContent = `Expected: ${result.drug.name} | Found Chemical Signature: ${result.actualDrug.name}`;
       } else {
-        badge.className = `verdict-badge ${data.verdict === 'GENUINE' ? "genuine" : "suspect"}`;
-        badge.textContent = data.verdict === 'GENUINE' ? `✓ VERIFIED — Authentic` : `✗ SUSPECT — Profile Anomaly`;
-        $("verdictMeta").textContent = `Target: ${data.drug} | Variance Distance: ${data.distance} | Threshold Limit: ${data.threshold}`;
-        log(`Analysis Core (Targeted): Target asset ${data.drug} verification loop resolved.`, data.verdict === 'GENUINE' ? "ok" : "err");
+        badge.className = `verdict-badge ${result.genuine ? "genuine" : "failed-match"}`;
+        badge.textContent = result.genuine
+          ? `✓ VERIFIED — Authentic`
+          : `✗ SUSPECT — Critical Failure`;
+        $("verdictMeta").textContent = `Target: ${result.drug.name} | Target Distance: ${result.distance} | Threshold: ${GENUINE_THRESHOLD}`;
       }
     }
+  }
+  
+  function updateSensorUI(R,  G,  B,  C) {
+    $("vR").textContent = R; $("vG").textContent = G;
+    $("vB").textContent = B; $("vC").textContent = C;
+    const max = Math.max(C, 1);
+    $("bR").style.width = `${Math.min(R / max * 100, 100)}%`;
+    $("bG").style.width = `${Math.min(G / max * 100, 100)}%`;
+    $("bB").style.width = `${Math.min(B / max * 100, 100)}%`;
+    $("bC").style.width = `${Math.min(C / 65535 * 100, 100)}%`;
+    const sc = Math.min(255 / max, 1) * (C / 65535 * 6 + 0.5);
+    const r8 = Math.min(Math.round(R * sc), 255);
+    const g8 = Math.min(Math.round(G * sc), 255);
+    const b8 = Math.min(Math.round(B * sc), 255);
+    const sw = $("swatch");
+    sw.style.background = `rgb(${r8},${g8},${b8})`;
+    sw.textContent = `rgb(${r8}, ${g8}, ${b8})`;
+    sw.style.color = (r8 + g8 + b8 > 380) ? "#000" : "#fff";
+  }
+
+  $("btnScan").addEventListener("click", () => {
+    if (isScanning || !keepReading) return;
+
+    isScanning = true;
+    buffer.length = 0; 
+    $("btnScan").disabled = true;
+    $("drugSelect").disabled = true; 
+    $("btnScan").textContent = "Analyzing Matrix...";
+    
+    $("verdictBadge").className = "verdict-badge scanning";
+    $("verdictBadge").textContent = `⏳ Running Molecular Scan (10s)...`;
+    
+    const activeModeName = $("drugSelect").options[$("drugSelect").selectedIndex].text;
+    log(`Atom Engine: Initializing ${SCAN_DURATION}s loop via mode profile [ ${activeModeName} ]`, "warn");
+    
+    if (socket && socket.connected) {
+      socket.emit("scanning_start", { mode: $("drugSelect").value });
+    }
+
+    currentScanTimeLeft = SCAN_DURATION;
+    countdownInterval = setInterval(() => {
+      currentScanTimeLeft--;
+      if (currentScanTimeLeft > 0) {
+        $("verdictBadge").textContent = `⏳ Scanning... ${currentScanTimeLeft}s remaining`;
+      }
+    }, 1000);
+
+    scanTimer = setTimeout(() => {
+      endScanSession();
+    }, SCAN_DURATION * 1000);
   });
 
-  function resetToIdle() {
-    $("modeIndicator").style.display = "none";
-    $("verdictBadge").className = "verdict-badge idle";
-    $("verdictBadge").textContent = "⬡ Awaiting Scan Trigger";
-    $("verdictMeta").textContent = "The operator has not initiated a validation sequence yet.";
-    $("vR").textContent = "—"; 
-    $("vG").textContent = "—";
-    $("vB").textContent = "—"; 
-    $("vC").textContent = "—";
-    $("bR").style.width = "0%"; $("bG").style.width = "0%";
-    $("bB").style.width = "0%"; $("bC").style.width = "0%";
-    $("swatch").style.background = "#1E293B";
-    $("swatch").textContent = "Spectral Preview Window";
+  function endScanSession() {
+    isScanning = false;
+    clearInterval(countdownInterval);
+    clearTimeout(scanTimer);
+    
+    $("btnScan").disabled = false;
+    $("drugSelect").disabled = false;
+    $("btnScan").textContent = "Initiate Drug Scan";
+    log("Atom Engine: Telemetry scan complete. Processing array maps.", "ok");
+
+    if (buffer.length === 0) {
+      $("verdictBadge").className = "verdict-badge idle";
+      $("verdictBadge").textContent = "⬡ Scan Failed: Bus Zero State";
+      $("verdictMeta").textContent = "Ensure sensor loop is plugged in securely and try again.";
+      return;
+    }
+
+    const sum = buffer.reduce((a, v) => ({
+      R: a.R + v.R, G: a.G + v.G, B: a.B + v.B, C: a.C + v.C
+    }), { R:0, G:0, B:0, C:0 });
+    
+    const live = {
+      R: Math.round(sum.R / buffer.length),
+      G: Math.round(sum.G / buffer.length),
+      B: Math.round(sum.B / buffer.length),
+      C: Math.round(sum.C / buffer.length)
+    };
+
+    const dropdownMode = $("drugSelect").value;
+    const result = processScanMatrix(live, dropdownMode);
+    
+    updateVerdictUI(result);
+    broadcastVerdict(result, live);
   }
+  
+  function parseLine(line) {
+    line = line.trim();
+    if (!line || !line.includes(",")) return;
+  
+    const parts = line.split(",");
+    if (parts.length !== 4) return;
+  
+    const R = parseInt(parts[0]);
+    const G = parseInt(parts[1]);
+    const B = parseInt(parts[2]);
+    const C = parseInt(parts[3]);
+    if ([R,G,B,C].some(isNaN)) return;
+  
+    if (!isScanning) return; 
+  
+    updateSensorUI(R, G, B, C);
+  
+    // FIXED: Blocks countdown packets from emitting if timer hits 0 to avoid screen lock overwrites
+    if (socket && socket.connected && currentScanTimeLeft > 0) {
+      socket.emit("scanning_countdown", { 
+        timeLeft: currentScanTimeLeft,
+        liveData: { R, G, B, C }
+      });
+    }
+  
+    buffer.push({ R, G, B, C });
+    if (buffer.length > BUFFER_SIZE) buffer.shift(); 
+  }
+  
+  $("btnSocketConnect").addEventListener("click", () => {
+    const url = $("serverUrl").value.trim() || "https://atom-5r4p.onrender.com"; 
+  
+    socket = io(url, {
+      query: { role: "operator" },
+      transports: ["websocket"]
+    });
+  
+    socket.on("connect", () => {
+      log(`Connected to relay server: ${url}`, "ok");
+      $("socketPill").className = "pill ok";
+      $("socketTxt").textContent = "Server: Connected";
+      $("btnSocketConnect").disabled    = true;
+      $("btnSocketDisconnect").disabled = false;
+    });
+  
+    socket.on("server_ack", (data) => {
+      log(`Server ACK: ${data.message}`, "ok");
+      audienceCount = data.audienceCount || 0;
+      updateAudienceCount();
+    });
+  
+    socket.on("broadcast_ack", (data) => {
+      log(`Broadcast execution confirmed to ${data.sentTo} clients`, "ok");
+    });
+  
+    socket.on("audience_update", (data) => {
+      audienceCount = data.count;
+      updateAudienceCount();
+      log(`Audience count updated: ${audienceCount}`, "info");
+    });
+  
+    socket.on("disconnect", () => {
+      log("Disconnected from relay server", "warn");
+      $("socketPill").className = "pill warn";
+      $("socketTxt").textContent = "Server: Disconnected";
+    });
+  
+    socket.on("connect_error", (err) => {
+      log(`Server connection error: ${err.message}`, "err");
+    });
+  });
+  
+  $("btnSocketDisconnect").addEventListener("click", () => {
+    if (socket) socket.disconnect();
+    $("btnSocketConnect").disabled    = false;
+    $("btnSocketDisconnect").disabled = true;
+    $("socketPill").className = "pill";
+    $("socketTxt").textContent = "Server: Off";
+    audienceCount = 0;
+    updateAudienceCount();
+  });
+  
+  function updateAudienceCount() {
+    if (audienceCount > 0) {
+      $("audiencePill").className = "pill ok";
+    } else {
+      $("audiencePill").className = "pill";
+    }
+    $("audienceTxt").textContent = `Audience: ${audienceCount}`;
+    $("audienceInfo").textContent = audienceCount > 0
+      ? `📡 Broadcasting live telemetry windows to ${audienceCount} client node${audienceCount > 1 ? "s" : ""}`
+      : '';
+  }
+  
+  function broadcastVerdict(result, live) {
+    if (!socket || !socket.connected) return;
+  
+    const payload = {
+      verdict: result.genuine ? "GENUINE" : "SUSPECT",
+      mode: result.mode,
+      drug: result.drug ? result.drug.name : "Unknown Item",
+      brand: result.drug ? result.drug.brand : "Unknown",
+      distance: result.distance,
+      threshold: GENUINE_THRESHOLD,
+      mismatch: result.mismatch,
+      actualFound: result.mismatch ? result.actualDrug.name : null,
+      live,
+      timestamp: Date.now()
+    };
+  
+    socket.emit("verdict", payload);
+  }
+  
+  $("btnSerial").addEventListener("click", async () => {
+    if (!("serial" in navigator)) {
+      alert("Web Serial requires Chrome or Edge (v89+).\nOpen this file in Chrome.");
+      return;
+    }
+    try {
+      serialPort = await navigator.serial.requestPort();
+      await serialPort.open({ baudRate: 115200 });
+      keepReading = true;
+      buffer.length = 0;
+  
+      $("serialPill").className = "pill ok";
+      $("serialTxt").textContent = "Serial: Connected";
+      $("btnSerial").disabled    = true;
+      $("btnSerialStop").disabled = false;
+      $("btnScan").disabled       = false; 
+      log("ESP32 serial port opened @ 115200", "ok");
+  
+      readSerial();
+    } catch (e) {
+      log(`Serial connect failed: ${e.message}`, "err");
+    }
+  });
+  
+  $("btnSerialStop").addEventListener("click", async () => {
+    keepReading = false;
+    isScanning = false;
+    clearInterval(countdownInterval);
+    clearTimeout(scanTimer);
+    try {
+      if (serialReader) await serialReader.cancel();
+      if (serialPort)   await serialPort.close();
+    } catch(e) { log(`Serial stop error: ${e.message}`, "warn"); }
+    serialPort = null; serialReader = null;
+    $("serialPill").className = "pill";
+    $("serialTxt").textContent = "Serial: Off";
+    $("btnSerial").disabled    = false;
+    $("btnSerialStop").disabled = true;
+    $("btnScan").disabled       = true;
+    $("btnScan").textContent   = "Initiate Drug Scan";
+    buffer.length = 0;
+    log("Serial disconnected", "warn");
+  });
+  
+  async function readSerial() {
+    const decoder = new TextDecoderStream();
+    serialPort.readable.pipeTo(decoder.writable);
+    serialReader = decoder.readable.getReader();
+    let buf = "";
+    try {
+      while (keepReading) {
+        const { value, done } = await serialReader.read();
+        if (done) break;
+        buf += value;
+        const lines = buf.split("\n");
+        buf = lines.pop();
+        lines.forEach(parseLine);
+      }
+    } catch(e) {
+      if (keepReading) log(`Read error: ${e.message}`, "err");
+    } finally {
+      serialReader.releaseLock();
+    }
+  }
+  
+  initializeDropdown();
+  log("Operator console ready.", "info");
+  log(`Reference DB: ${REFERENCE_DB.length} signatures active.`, "info");
+  log(`Look-up threshold: ${GENUINE_THRESHOLD}`, "info");
 </script>
+
 </body>
 </html>
