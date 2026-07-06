@@ -133,7 +133,7 @@
   }
   .verdict-badge.idle     { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.25); font-size: 15px; }
   .verdict-badge.genuine  { background: rgba(22,163,74,0.2);  color: #4ADE80; border: 2px solid rgba(22,163,74,0.5); box-shadow: 0 0 40px rgba(22,163,74,0.25); }
-  .verdict-badge.failed-match { background: rgba(220,38,38,0.2);  color: #F87171; border: 2px solid rgba(220,38,38,0.5); box-shadow: 0 0 40px rgba(220,38,38,0.25); }
+  .verdict-badge.failed-match { background: rgba(220,38,38,0.2);  color: #F87171; border: 2px solid rgba(220,38,38,0.5); box-shadow: 0 0 40px rgba(22,163,74,0.25); }
   .verdict-badge.scanning { background: rgba(217,119,6,0.15); color: var(--amber); border: 2px solid rgba(217,119,6,0.4); box-shadow: 0 0 20px rgba(217,119,6,0.15); }
 
   .verdict-meta { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; font-family: monospace; }
@@ -200,7 +200,7 @@
     <label>Relay Server URL:</label>
     <input type="text" id="serverUrl"
       placeholder="https://your-app.render.com"
-      value="https://atom-backend.onrender.com"/>
+      value="https://atom-5r4p.onrender.com"/>
     <button class="btn btn-teal" id="btnSocketConnect">Connect to Server</button>
     <button class="btn btn-red"  id="btnSocketDisconnect" disabled>Disconnect</button>
   </div>
@@ -490,7 +490,7 @@
   }
   
   $("btnSocketConnect").addEventListener("click", () => {
-    const url = $("serverUrl").value.trim() || "https://atom-backend.onrender.com"; 
+    const url = $("serverUrl").value.trim() || "https://atom-5r4p.onrender.com"; 
   
     socket = io(url, {
       query: { role: "operator" },
@@ -641,7 +641,7 @@
   initializeDropdown();
   log("Operator console ready.", "info");
   log(`Reference DB: ${REFERENCE_DB.length} signatures active.`, "info");
-  log(`Euclidean threshold: ${GENUINE_THRESHOLD}`, "info");
+  log(`Look-up threshold: ${GENUINE_THRESHOLD}`, "info");
 </script>
 
 </body>
