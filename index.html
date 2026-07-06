@@ -168,8 +168,7 @@
       </div>
       <div class="ch ch-G">
         <div class="ch-lbl">Green Channel</div>
-        <div class="ch-val" id="vG">—</div>
-        <div class="ch-bar"><div class="ch-bar-fill" id="bG"></div></div>
+        <div class="ch-val" id="vR">—</div> <div class="ch-bar"><div class="ch-bar-fill" id="bG"></div></div>
       </div>
       <div class="ch ch-B">
         <div class="ch-lbl">Blue Channel</div>
@@ -204,7 +203,8 @@
     $("logBox").scrollTop = $("logBox").scrollHeight;
   }
 
-  const socket = io("https://atom-backend.onrender.com", {
+  // Linked directly to your unique live cluster instance port
+  const socket = io("https://atom-5r4p.onrender.com", {
     query: { role: "audience" },
     transports: ["websocket"]
   });
@@ -245,7 +245,10 @@
     
     if (data.liveData) {
       const { R, G, B, C } = data.liveData;
-      $("vR").textContent = R; $("vG").textContent = G;
+      $("vR").textContent = R; 
+      // Safe dynamic lookup resolution for the Green display node element
+      const greenValNode = document.querySelector('.ch-G .ch-val') || $("vG");
+      if (greenValNode) greenValNode.textContent = G;
       $("vB").textContent = B; $("vC").textContent = C;
       
       const max = Math.max(C, 1);
@@ -264,7 +267,6 @@
     }
   });
 
-  // FIXED: Synchronized cleanly with operator payload event names
   socket.on("verdict", (data) => {
     const badge = $("verdictBadge");
     $("modeIndicator").style.display = "inline-flex";
@@ -296,7 +298,9 @@
     $("verdictBadge").className = "verdict-badge idle";
     $("verdictBadge").textContent = "⬡ Awaiting Scan Trigger";
     $("verdictMeta").textContent = "The operator has not initiated a validation sequence yet.";
-    $("vR").textContent = "—"; $("vG").textContent = "—";
+    $("vR").textContent = "—"; 
+    const greenValNode = document.querySelector('.ch-G .ch-val');
+    if (greenValNode) greenValNode.textContent = "—";
     $("vB").textContent = "—"; $("vC").textContent = "—";
     $("bR").style.width = "0%"; $("bG").style.width = "0%";
     $("bB").style.width = "0%"; $("bC").style.width = "0%";
