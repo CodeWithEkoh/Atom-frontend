@@ -168,7 +168,8 @@
       </div>
       <div class="ch ch-G">
         <div class="ch-lbl">Green Channel</div>
-        <div class="ch-val" id="vR">—</div> <div class="ch-bar"><div class="ch-bar-fill" id="bG"></div></div>
+        <div class="ch-val" id="vG">—</div>
+        <div class="ch-bar"><div class="ch-bar-fill" id="bG"></div></div>
       </div>
       <div class="ch ch-B">
         <div class="ch-lbl">Blue Channel</div>
@@ -203,7 +204,7 @@
     $("logBox").scrollTop = $("logBox").scrollHeight;
   }
 
-  // Linked directly to your unique live cluster instance port
+  // Pointing to your custom server configuration cluster
   const socket = io("https://atom-5r4p.onrender.com", {
     query: { role: "audience" },
     transports: ["websocket"]
@@ -246,10 +247,9 @@
     if (data.liveData) {
       const { R, G, B, C } = data.liveData;
       $("vR").textContent = R; 
-      // Safe dynamic lookup resolution for the Green display node element
-      const greenValNode = document.querySelector('.ch-G .ch-val') || $("vG");
-      if (greenValNode) greenValNode.textContent = G;
-      $("vB").textContent = B; $("vC").textContent = C;
+      $("vG").textContent = G;
+      $("vB").textContent = B; 
+      $("vC").textContent = C;
       
       const max = Math.max(C, 1);
       $("bR").style.width = `${Math.min(R / max * 100, 100)}%`;
@@ -267,6 +267,7 @@
     }
   });
 
+  // FIXED: Spelling variables renamed from 'result' parameters back to incoming argument scope 'data'
   socket.on("verdict", (data) => {
     const badge = $("verdictBadge");
     $("modeIndicator").style.display = "inline-flex";
@@ -299,9 +300,9 @@
     $("verdictBadge").textContent = "⬡ Awaiting Scan Trigger";
     $("verdictMeta").textContent = "The operator has not initiated a validation sequence yet.";
     $("vR").textContent = "—"; 
-    const greenValNode = document.querySelector('.ch-G .ch-val');
-    if (greenValNode) greenValNode.textContent = "—";
-    $("vB").textContent = "—"; $("vC").textContent = "—";
+    $("vG").textContent = "—";
+    $("vB").textContent = "—"; 
+    $("vC").textContent = "—";
     $("bR").style.width = "0%"; $("bG").style.width = "0%";
     $("bB").style.width = "0%"; $("bC").style.width = "0%";
     $("swatch").style.background = "#1E293B";
