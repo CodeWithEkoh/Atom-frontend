@@ -277,7 +277,7 @@
   let scanTimer = null;
   let countdownInterval = null;
   const SCAN_DURATION = 10; 
-  let currentScanTimeLeft = 10; // Tracker variable
+  let currentScanTimeLeft = 10;
   
   const $ = id => document.getElementById(id);
 
@@ -427,6 +427,7 @@
 
   function endScanSession() {
     isScanning = false;
+    currentScanTimeLeft = 0; // Immediately wipe timer signature
     clearInterval(countdownInterval);
     clearTimeout(scanTimer);
     
@@ -477,7 +478,6 @@
   
     updateSensorUI(R, G, B, C);
   
-    // FIXED: Blocks countdown packets from emitting if timer hits 0 to avoid screen lock overwrites
     if (socket && socket.connected && currentScanTimeLeft > 0) {
       socket.emit("scanning_countdown", { 
         timeLeft: currentScanTimeLeft,
