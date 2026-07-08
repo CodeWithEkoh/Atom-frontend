@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Atom Drug Guard — Operator Console</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -22,7 +22,7 @@
   .pill { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); }
   .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--slate); }
   .pill.ok   .dot { background: var(--green); box-shadow: 0 0 5px var(--green); }
-  .pill.ok        { border-color: rgba(22,163,74,0.35); }
+  .pill.ok       { border-color: rgba(22,163,74,0.35); }
   .pill.warn .dot { background: var(--amber); }
   .pill.warn     { border-color: rgba(217,119,6,0.35); }
   main { flex: 1; padding: 22px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -198,19 +198,8 @@
   }
   
   $("btnSocketConnect").addEventListener("click", () => {
-    let url = $("serverUrl").value.trim() || "https://atom-5r4p.onrender.com";
-    if (url.startsWith('http')) {
-        url = url.replace(/^http/, 'ws');
-    }
-    
-    // Fixed configuration mapping to explicitly match Render socket tunnel expectations
-    socket = io(url, { 
-        query: { role: "operator" }, 
-        transports: ["websocket"],
-        upgrade: false,
-        forceNew: true
-    });
-    
+    const url = $("serverUrl").value.trim() || "https://atom-5r4p.onrender.com";
+    socket = io(url, { query: { role: "operator" }, transports: ["websocket"] });
     socket.on("connect", () => { log(`Connected to server`, "ok"); $("socketPill").className = "pill ok"; $("socketTxt").textContent = "Server: Connected"; $("btnSocketConnect").disabled = true; $("btnSocketDisconnect").disabled = false; });
     socket.on("server_ack", (data) => { audienceCount = data.audienceCount || 0; updateAudienceCount(); });
     socket.on("audience_update", (data) => { audienceCount = data.count; updateAudienceCount(); });
