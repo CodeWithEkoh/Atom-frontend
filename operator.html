@@ -6,343 +6,266 @@
     <title>Atom Drug Guard - Operator Console</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        :root {
-            --bg-dark: #0f172a;
-            --panel-dark: #1e293b;
-            --text-light: #f8fafc;
-            --accent-teal: #0d9488;
-            --accent-orange: #ea580c;
-            --status-red: #ef4444;
-            --status-green: #22c55e;
-        }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-light);
+            font-family: Arial, sans-serif;
+            background-color: #121824;
+            color: white;
             margin: 0;
             padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
         }
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 2px solid var(--panel-dark);
-            padding-bottom: 20px;
-            margin-bottom: 20px;
+            border-bottom: 1px solid #2d3748;
+            padding-bottom: 10px;
         }
-        .brand {
+        .status {
             display: flex;
-            align-items: center;
             gap: 15px;
         }
-        .brand h1 {
-            margin: 0;
-            font-size: 24px;
-            letter-spacing: 0.5px;
-        }
-        .status-bar {
-            display: flex;
-            gap: 20px;
-        }
-        .status-indicator {
+        .status span {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-weight: 500;
+            gap: 5px;
         }
-        .dot {
+        .indicator {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background-color: #64748b;
+            display: inline-block;
         }
-        .dot.connected { background-color: var(--status-green); }
-        .dot.disconnected { background-color: var(--status-red); }
-        
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+        .on { background-color: #4caf50; }
+        .off { background-color: #f44336; }
+        .main-container {
+            display: flex;
             gap: 20px;
-        }
-        @media (max-width: 768px) {
-            .dashboard-grid { grid-template-columns: 1fr; }
+            margin-top: 20px;
         }
         .panel {
-            background-color: var(--panel-dark);
-            border-radius: 8px;
+            background-color: #1e293b;
             padding: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-        }
-        .panel h2 {
-            margin-top: 0;
-            font-size: 18px;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 10px;
-        }
-        .control-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: #94a3b8;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            background-color: var(--bg-dark);
-            border: 1px solid #334155;
-            border-radius: 4px;
-            color: var(--text-light);
-            box-sizing: border-box;
-        }
-        .btn-container {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        button {
+            border-radius: 8px;
             flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 4px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
         }
-        button:hover { opacity: 0.9; }
-        .btn-teal { background-color: var(--accent-teal); color: white; }
-        .btn-orange { background-color: var(--accent-orange); color: white; }
-        .btn-secondary { background-color: #475569; color: white; }
-        
-        .sensor-grid {
+        .btn {
+            background-color: #008cba;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-scan {
+            background-color: #ff5722;
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+        .btn-stop {
+            background-color: #3b82f6;
+        }
+        .sensor-values {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 15px;
+            gap: 10px;
+            margin-top: 20px;
         }
         .sensor-card {
-            background-color: var(--bg-dark);
+            background-color: #0f172a;
             padding: 15px;
-            border-radius: 6px;
+            border-radius: 5px;
             text-align: center;
-            border: 1px solid #334155;
         }
-        .sensor-card .value {
-            font-size: 28px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-        .log-box {
-            background-color: var(--bg-dark);
-            border: 1px solid #334155;
-            border-radius: 6px;
-            height: 200px;
-            padding: 10px;
+        .sensor-card.red { border-left: 5px solid #ef4444; }
+        .sensor-card.blue { border-left: 5px solid #3b82f6; }
+        .log-container {
+            background-color: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            height: 150px;
             overflow-y: auto;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
+            font-family: monospace;
             color: #38bdf8;
+            border: 1px solid #1e293b;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #94a3b8;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 5px;
+            color: white;
+            box-sizing: border-box;
+        }
+        .flex-buttons {
+            display: flex;
+            gap: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="brand">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
-                <h1>Atom Drug Guard <span style="font-size: 12px; color: #64748b;">Operator Console</span></h1>
+
+    <div class="header">
+        <h2>Atom Drug Guard</h2>
+        <div class="status">
+            <span><div id="serial-status" class="indicator off"></div> Serial: Connected</span>
+            <span><div id="server-status" class="indicator off"></div> Server: Off</span>
+            <span>Audience: 0</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="panel">
+            <h3>System Control</h3>
+            <div class="input-group">
+                <label>Relay Server URL:</label>
+                <input type="text" id="server-url" value="https://atom-backend.onrender.com">
             </div>
-            <div class="status-bar">
-                <div class="status-indicator">
-                    <div id="serial-dot" class="dot disconnected"></div>
-                    <span>Serial: <span id="serial-text">Disconnected</span></span>
+            <div class="flex-buttons">
+                <button class="btn" id="connect-esp">Connect ESP32</button>
+                <button class="btn" id="connect-server">Connect to Server</button>
+            </div>
+            
+            <button class="btn btn-scan" id="start-scan">Initiate Drug Scan</button>
+            <button class="btn btn-stop" id="stop-scan" style="margin-top:10px; width:100%;">Stop</button>
+        </div>
+
+        <div class="panel">
+            <h3>Live Sensor Values</h3>
+            <div class="sensor-values">
+                <div class="sensor-card red">
+                    <p style="color:#ef4444; margin:0;">RED</p>
+                    <h2 id="val-r" style="margin:10px 0 0 0;">-</h2>
                 </div>
-                <div class="status-indicator">
-                    <div id="server-dot" class="dot disconnected"></div>
-                    <span>Server: <span id="server-text">Off</span></span>
+                <div class="sensor-card blue">
+                    <p style="color:#3b82f6; margin:0;">BLUE</p>
+                    <h2 id="val-b" style="margin:10px 0 0 0;">-</h2>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="dashboard-grid">
-            <div class="panel">
-                <h2>System Control</h2>
-                <div class="control-group">
-                    <label for="server-url">Relay Server URL:</label>
-                    <input type="text" id="server-url" value="https://atom-backend.onrender.com" placeholder="wss://your-app.onrender.com">
-                </div>
-                
-                <div class="btn-container">
-                    <button class="btn-secondary" id="btn-hardware">Connect ESP32</button>
-                    <button class="btn-teal" id="btn-server">Connect to Server</button>
-                </div>
-                
-                <div class="btn-container" style="margin-top: 25px;">
-                    <button class="btn-orange" id="btn-scan" style="font-size: 16px; padding: 15px;">Initiate Drug Scan</button>
-                    <button class="btn-secondary" id="btn-stop" style="max-width: 100px;">Stop</button>
-                </div>
-            </div>
-
-            <div class="panel">
-                <h2>Live Sensor Values</h2>
-                <div class="sensor-grid">
-                    <div class="sensor-card" style="border-top: 4px solid var(--status-red);">
-                        <div style="color: var(--status-red);">RED</div>
-                        <div class="value" id="val-red">-</div>
-                    </div>
-                    <div class="sensor-card" style="border-top: 4px solid var(--status-green);">
-                        <div style="color: var(--status-green);">GREEN</div>
-                        <div class="value" id="val-green">-</div>
-                    </div>
-                    <div class="sensor-card" style="border-top: 4px solid #38bdf8;">
-                        <div style="color: #38bdf8;">BLUE</div>
-                        <div class="value" id="val-blue">-</div>
-                    </div>
-                    <div class="sensor-card" style="border-top: 4px solid #e2e8f0;">
-                        <div>CLEAR</div>
-                        <div class="value" id="val-clear">-</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="panel" style="margin-top: 20px;">
-            <h2>Core Atom Execution Logs</h2>
-            <div class="log-box" id="log-container">System initialized. Awaiting connection...</div>
-        </div>
+    <div class="log-container" id="log-box">
+        [SYSTEM] Ready. Awaiting operations...
     </div>
 
     <script>
         let socket = null;
-        let serialPort = null;
+        let port = null;
         let reader = null;
+        const logBox = document.getElementById('log-box');
 
-        const logContainer = document.getElementById('log-container');
-        const serverUrlInput = document.getElementById('server-url');
-
-        function log(message) {
-            const timestamp = new Date().toLocaleTimeString();
-            logContainer.innerHTML += `<div>[${timestamp}] ${message}</div>`;
-            logContainer.scrollTop = logContainer.scrollHeight;
+        function printLog(msg) {
+            const time = new Date().toLocaleTimeString();
+            logBox.innerHTML += `<div>[${time}] ${msg}</div>`;
+            logBox.scrollTop = logBox.scrollHeight;
         }
 
-        // --- Server Connection Logic ---
-        document.getElementById('btn-server').addEventListener('click', () => {
-            let url = serverUrlInput.value.trim();
-            if (!url) return alert("Please enter a valid Relay Server URL!");
-            
-            // Auto-convert HTTP to WS protocol if needed
-            if (url.startsWith('http')) {
-                url = url.replace(/^http/, 'ws');
+        // Connect to Render Pipeline
+        document.getElementById('connect-server').addEventListener('click', () => {
+            let targetUrl = document.getElementById('server-url').value.trim();
+            if(targetUrl.startsWith('http')) {
+                targetUrl = targetUrl.replace(/^http/, 'ws');
             }
 
-            log(`Connecting to relay pipeline at ${url}...`);
+            printLog(`Attempting connection to handshake relay...`);
             
-            // Check if io library successfully loaded from CDN
             if (typeof io === 'undefined') {
-                log("CRITICAL ERROR: Socket.io library failed to load. Check internet connection.");
-                alert("Socket.io library not loaded. Please ensure your laptop has internet access to download the script.");
+                printLog("ERROR: Socket library asset missing.");
                 return;
             }
 
-            socket = io(url, { transports: ['websocket'] });
+            socket = io(targetUrl, { transports: ['websocket'] });
 
             socket.on('connect', () => {
-                document.getElementById('server-dot').className = "dot connected";
-                document.getElementById('server-text').innerText = "Connected";
-                log("Successfully connected to live audience relay network.");
+                document.getElementById('server-status').className = "indicator on";
+                printLog("Connected to live audience relay network.");
             });
 
             socket.on('disconnect', () => {
-                document.getElementById('server-dot').className = "dot disconnected";
-                document.getElementById('server-text').innerText = "Off";
-                log("Disconnected from server.");
+                document.getElementById('server-status').className = "indicator off";
+                printLog("Disconnected from server resource.");
             });
 
             socket.on('connect_error', (err) => {
-                log(`Server connection error: ${err.message}`);
+                printLog(`Server connection error: websocket error`);
             });
         });
 
-        // --- Web Serial Hardware Logic ---
-        document.getElementById('btn-hardware').addEventListener('click', async () => {
+        // Web Serial Port Connection
+        document.getElementById('connect-esp').addEventListener('click', async () => {
             if ('serial' in navigator) {
                 try {
-                    serialPort = await navigator.serial.requestPort();
-                    await serialPort.open({ baudRate: 115200 }); // Matches ESP32 setup
-                    
-                    document.getElementById('serial-dot').className = "dot connected";
-                    document.getElementById('serial-text').innerText = "Connected";
-                    log("ESP32 Connected via Serial Port successfully.");
-                    
-                    readSerialStream();
-                } catch (error) {
-                    log(`Serial connection error: ${error.message}`);
+                    port = await navigator.serial.requestPort();
+                    await port.open({ baudRate: 115200 });
+                    document.getElementById('serial-status').className = "indicator on";
+                    printLog("ESP32 interface bound successfully.");
+                    readSerial();
+                } catch (e) {
+                    printLog(`Serial Error: ${e.message}`);
                 }
             } else {
-                alert("Web Serial API not supported. Please use Google Chrome or Microsoft Edge.");
+                alert("Browser engine does not support Web Serial.");
             }
         });
 
-        async function readSerialStream() {
-            while (serialPort.readable) {
-                const textDecoder = new TextDecoderStream();
-                const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
-                reader = textDecoder.readable.getReader();
-
+        async function readSerial() {
+            while (port.readable) {
+                const decoder = new TextDecoderStream();
+                const closed = port.readable.pipeTo(decoder.writable);
+                reader = decoder.readable.getReader();
                 try {
                     while (true) {
                         const { value, done } = await reader.read();
                         if (done) break;
                         if (value) {
-                            processTelemetryData(value);
+                            parseIncomingStream(value);
                         }
                     }
-                } catch (error) {
-                    log(`Stream reading error: ${error.message}`);
+                } catch (e) {
+                    printLog(`Stream break: ${e.message}`);
                 } finally {
                     reader.releaseLock();
                 }
             }
         }
 
-        function processTelemetryData(data) {
-            log(`Raw Hardware Data: ${data.trim()}`);
-            // Example data parsing structure matching: "R:120,G:230,B:110,C:50"
-            if(data.includes('R:') && data.includes('G:')) {
-                const matches = data.match(/([RGBC]):(\d+)/g);
-                if(matches) {
-                    matches.forEach(m => {
-                        const [key, val] = m.split(':');
-                        if(key === 'R') { document.getElementById('val-red').innerText = val; if(socket) socket.emit('telemetry', {type:'R', value:val}); }
-                        if(key === 'G') { document.getElementById('val-green').innerText = val; if(socket) socket.emit('telemetry', {type:'G', value:val}); }
-                        if(key === 'B') { document.getElementById('val-blue').innerText = val; if(socket) socket.emit('telemetry', {type:'B', value:val}); }
-                        if(key === 'C') { document.getElementById('val-clear').innerText = val; if(socket) socket.emit('telemetry', {type:'C', value:val}); }
-                    });
-                }
+        function parseIncomingStream(data) {
+            printLog(`Data: ${data.trim()}`);
+            const rMatch = data.match(/R:(\d+)/);
+            const bMatch = data.match(/B:(\d+)/);
+            if(rMatch) {
+                document.getElementById('val-r').innerText = rMatch[1];
+                if(socket) socket.emit('telemetry', {type:'R', value:rMatch[1]});
+            }
+            if(bMatch) {
+                document.getElementById('val-b').innerText = bMatch[1];
+                if(socket) socket.emit('telemetry', {type:'B', value:bMatch[1]});
             }
         }
 
-        // --- Scanning Execution Triggers ---
-        document.getElementById('btn-scan').addEventListener('click', () => {
-            log("Initiating molecular array drug scan sequence...");
-            if (socket && socket.connected) {
+        document.getElementById('start-scan').addEventListener('click', () => {
+            printLog("Initiating scan sequence...");
+            if(socket && socket.connected) {
                 socket.emit('command', { action: 'START_SCAN' });
-                log("Scan trigger dispatched to audience displays.");
-            } else {
-                log("Warning: Server is offline. Scan values will only log locally.");
             }
         });
 
-        document.getElementById('btn-stop').addEventListener('click', () => {
-            log("Scan operation terminated by operator.");
-            if (socket && socket.connected) {
+        document.getElementById('stop-scan').addEventListener('click', () => {
+            printLog("Scan sequence terminated.");
+            if(socket && socket.connected) {
                 socket.emit('command', { action: 'STOP_SCAN' });
             }
         });
