@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Atom — Projector Live Display</title>
+<title>Atom — Live Audience Display</title>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,9 +22,11 @@
   .pill { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); }
   .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--slate); }
   .pill.ok   .dot { background: var(--green); box-shadow: 0 0 5px var(--green); }
-  .pill.ok       { border-color: rgba(22,163,74,0.35); }
+  .pill.ok        { border-color: rgba(22,163,74,0.35); }
   .pill.connecting .dot { background: var(--amber); }
   .pill.connecting     { border-color: rgba(217,119,6,0.35); }
+  .pill.locked .dot { background: var(--red); box-shadow: 0 0 5px var(--red); }
+  .pill.locked      { border-color: rgba(220,38,38,0.35); color: #FCA5A5; }
   main { flex: 1; padding: 22px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; }
   .card-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; color: var(--teal); text-transform: uppercase; margin-bottom: 14px; }
@@ -35,6 +37,7 @@
   .verdict-badge.genuine  { background: rgba(22,163,74,0.2);  color: #4ADE80; border: 2px solid rgba(22,163,74,0.5); box-shadow: 0 0 40px rgba(22,163,74,0.25); }
   .verdict-badge.suspect  { background: rgba(220,38,38,0.2);  color: #F87171; border: 2px solid rgba(220,38,38,0.5); box-shadow: 0 0 40px rgba(220,38,38,0.25); }
   .verdict-badge.scanning { background: rgba(217,119,6,0.15); color: var(--amber); border: 2px solid rgba(217,119,6,0.4); box-shadow: 0 0 20px rgba(217,119,6,0.15); }
+  .verdict-badge.full     { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 2px solid rgba(220,38,38,0.4); }
   .verdict-meta { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; font-family: monospace; }
   .sensor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .ch { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
@@ -47,17 +50,16 @@
   .color-swatch { height: 70px; border-radius: 10px; background: #1E293B; border: 1px solid var(--border); margin-top: 12px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: rgba(255,255,255,0.3); transition: background 0.3s; }
   .log-card { display: flex; flex-direction: column; }
   .log { background: rgba(0,0,0,0.35); border-radius: 8px; padding: 10px 12px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 10px; color: rgba(255,255,255,0.35); grid-column: 1 / -1; }
-  .log .ll { margin-bottom: 2px; } .log .ok { color: #4ADE80; } .log .err { color: #F87171; }
 
   @media (max-width: 768px) {
     main { grid-template-columns: 1fr; padding: 14px; gap: 12px; }
-    .log-card { display: none !important; } /* Removes Execution Logs card on Mobile View */
+    .log-card { display: none !important; }
   }
 </style>
 </head>
 <body>
 <header>
-  <div class="brand"> <div class="brand-icon">💊</div><div><h1>Atom — Projector View</h1><sub>Decentralized Live Broadcast Monitor Feed</sub></div></div>
+  <div class="brand"> <div class="brand-icon">💊</div><div><h1>Atom — Live View</h1><sub>Decentralized Live Broadcast Monitor Feed</sub></div></div>
   <div class="pills"><div class="pill" id="socketPill"><div class="dot"></div><span id="socketTxt">Pipeline: Off</span></div></div>
 </header>
 <main>
@@ -90,10 +92,40 @@
   const socket = io("https://atom-5r4p.onrender.com", { query: { role: "audience" }, transports: ["websocket"] });
   $("socketPill").className = "pill connecting"; $("socketTxt").textContent = "Pipeline: Connecting...";
 
-  socket.on("connect", () => { $("socketPill").className = "pill ok"; $("socketTxt").textContent = "Pipeline: Live Mirror Link"; });
-  socket.on("disconnect", () => { $("socketPill").className = "pill"; $("socketTxt").textContent = "Pipeline: Off"; resetToIdle(); });
+  socket.on("connect", () => { 
+    $("socketPill").className = "pill ok"; 
+    $("socketTxt").textContent = "Pipeline: Live Mirror Link"; 
+  });
+  
+  socket.on("disconnect", () => { 
+    if ($("socketTxt").textContent !== "Pipeline: Room Full") {
+      $("socketPill").className = "pill"; 
+      $("socketTxt").textContent = "Pipeline: Off"; 
+      resetToIdle(); 
+    }
+  });
+
+  // ── 🔒 CATCH THE LOCKOUT SYSTEM TRIGGER ──
+  socket.on("room_full", (data) => {
+    finalVerdictReceived = true;
+    $("socketPill").className = "pill locked";
+    $("socketTxt").textContent = "Pipeline: Room Full";
+    
+    const badge = $("verdictBadge");
+    badge.className = "verdict-badge full";
+    badge.textContent = "🔒 Live Demo Room Full (50/50)";
+    
+    $("verdictMeta").textContent = "Maximum testing cluster capacity reached. Please watch the main projector screen presentation up front!";
+    $("modeIndicator").style.display = "none";
+    
+    // Clear display counters natively
+    $("vR").textContent = "—"; $("vG").textContent = "—"; $("vB").textContent = "—"; $("vC").textContent = "—";
+    $("bR").style.width = "0%"; $("bG").style.width = "0%"; $("bB").style.width = "0%"; $("bC").style.width = "0%";
+    $("swatch").style.background = "#1E293B"; $("swatch").textContent = "Spectral Preview Window";
+  });
 
   socket.on("operator_scanning", (data) => {
+    if (finalVerdictReceived && $("socketTxt").textContent === "Pipeline: Room Full") return;
     finalVerdictReceived = false;
     $("modeIndicator").style.display = "inline-flex";
     $("modeIndicator").textContent = (data && data.mode === "AUTO_DETECT") ? "✨ Auto-Detect (AI Mode) Active" : "🔍 Targeted Audit Verification Active";
@@ -115,6 +147,7 @@
   });
 
   socket.on("verdict", (data) => {
+    if (finalVerdictReceived && $("socketTxt").textContent === "Pipeline: Room Full") return;
     finalVerdictReceived = true;
     const badge = $("verdictBadge"); $("modeIndicator").style.display = "inline-flex";
     if (data.mode === "AUTO") {
@@ -129,7 +162,13 @@
     $("verdictMeta").textContent = `Distance: ${data.distance} | Threshold: ${data.threshold}`;
   });
 
-  function resetToIdle() { finalVerdictReceived = false; $("modeIndicator").style.display = "none"; $("verdictBadge").className = "verdict-badge idle"; $("verdictBadge").textContent = "⬡ Awaiting Scan Trigger"; }
+  function resetToIdle() { 
+    if ($("socketTxt").textContent === "Pipeline: Room Full") return;
+    finalVerdictReceived = false; 
+    $("modeIndicator").style.display = "none"; 
+    $("verdictBadge").className = "verdict-badge idle"; 
+    $("verdictBadge").textContent = "⬡ Awaiting Scan Trigger"; 
+  }
 </script>
 </body>
 </html>
