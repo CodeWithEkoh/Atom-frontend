@@ -22,7 +22,7 @@
   .pill { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); }
   .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--slate); }
   .pill.ok   .dot { background: var(--green); box-shadow: 0 0 5px var(--green); }
-  .pill.ok       { border-color: rgba(22,163,74,0.35); }
+  .pill.ok        { border-color: rgba(22,163,74,0.35); }
   .pill.warn .dot { background: var(--amber); }
   .pill.warn     { border-color: rgba(217,119,6,0.35); }
   main { flex: 1; padding: 22px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -44,6 +44,8 @@
   .btn-red     { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
   .btn-red:hover { background: rgba(220,38,38,0.25); }
   .btn-red:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-white { background: var(--white); color: var(--navy); }
+  .btn-white:hover { background: rgba(255,255,255,0.85); }
   .btn-outline { background: transparent; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15); }
   .btn-outline:hover { background: rgba(255,255,255,0.06); }
   .server-input-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
@@ -84,8 +86,8 @@
   <div class="server-input-row">
     <label>Relay Server URL:</label>
     <input type="text" id="serverUrl" value="https://atom-5r4p.onrender.com"/>
-    <button class="btn btn-teal" id="btnSocketConnect">Connect to Server</button>
-    <button class="btn btn-red"  id="btnSocketDisconnect" disabled>Disconnect</button>
+    <button class="btn btn-white" id="btnSocketConnect">Establish Network Pipeline</button>
+    <button class="btn btn-red"  id="btnSocketDisconnect" disabled>Disconnect Link</button>
   </div>
   <div class="connect-row">
     <p>Select scan profile mode → click <b>Connect ESP32</b> → Click <b>Initiate Drug Scan</b>.</p>
@@ -156,7 +158,7 @@
       badge.textContent = result.genuine ? `✓ DETECTED — ${result.drug.name}` : `✗ UNKNOWN — Counterfeit Flagged`;
       $("verdictMeta").textContent = `Dist: ${result.distance} | Auto-Match: ${result.drug.name}`;
     } else {
-      if (result.mismatch) { badge.className = "verdict-badge failed-match"; badge.textContent = `⚠️ MISMATCH — Box Swapped`; $("verdictMeta").textContent = `Expected: ${result.drug.name} | Found: ${result.actualDrug.name}`; }
+      if (result.mismatch) { badge.className = "verdict-badge failed-match"; badge.textContent = `⚠️ MISMATCH — Box Swapped`; "Expected: " + result.drug.name + " | Found: " + result.actualDrug.name; }
       else { badge.className = `verdict-badge ${result.genuine ? "genuine" : "failed-match"}`; badge.textContent = result.genuine ? `✓ VERIFIED — Authentic` : `✗ SUSPECT — Critical Failure`; $("verdictMeta").textContent = `Target: ${result.drug.name} | Dist: ${result.distance}`; }
     }
   }
@@ -197,16 +199,55 @@
     buffer.push({ R, G, B, C }); if (buffer.length > BUFFER_SIZE) buffer.shift(); 
   }
   
-  $("btnSocketConnect").addEventListener("click", () => {
-    const url = $("serverUrl").value.trim() || "https://atom-5r4p.onrender.com";
-    socket = io(url, { query: { role: "operator" }, transports: ["websocket"] });
-    socket.on("connect", () => { log(`Connected to server`, "ok"); $("socketPill").className = "pill ok"; $("socketTxt").textContent = "Server: Connected"; $("btnSocketConnect").disabled = true; $("btnSocketDisconnect").disabled = false; });
+  function initSocketLink(explicitUrl) {
+    if (socket) { socket.disconnect(); }
+    
+    // Explicit binding to your live Render environment over WebSockets overrides extension tracking loops
+    socket = io(explicitUrl, { 
+      query: { role: "operator" }, 
+      transports: ["websocket"],
+      forceNew: true,
+      reconnectionAttempts: 5
+    });
+    
+    socket.on("connect", () => { 
+      log(`Connected to server cluster [${explicitUrl}]`, "ok"); 
+      $("socketPill").className = "pill ok"; 
+      $("socketTxt").textContent = "Server: Connected"; 
+      $("btnSocketConnect").disabled = true; 
+      $("btnSocketDisconnect").disabled = false; 
+    });
+    
     socket.on("server_ack", (data) => { audienceCount = data.audienceCount || 0; updateAudienceCount(); });
     socket.on("audience_update", (data) => { audienceCount = data.count; updateAudienceCount(); });
-    socket.on("disconnect", () => { $("socketPill").className = "pill warn"; $("socketTxt").textContent = "Server: Off"; });
+    
+    socket.on("disconnect", () => { 
+      $("socketPill").className = "pill warn"; 
+      $("socketTxt").textContent = "Server: Off"; 
+      $("btnSocketConnect").disabled = false; 
+      $("btnSocketDisconnect").disabled = true; 
+    });
+    
+    socket.on("connect_error", (err) => {
+      log(`Pipeline connection failure: ${err.message}`, "err");
+    });
+  }
+  
+  $("btnSocketConnect").addEventListener("click", () => {
+    const targetUrl = $("serverUrl").value.trim() || "https://atom-5r4p.onrender.com";
+    initSocketLink(targetUrl);
   });
   
-  $("btnSocketDisconnect").addEventListener("click", () => { if (socket) socket.disconnect(); $("btnSocketConnect").disabled = false; $("btnSocketDisconnect").disabled = true; $("socketPill").className = "pill"; $("socketTxt").textContent = "Server: Off"; audienceCount = 0; updateAudienceCount(); });
+  $("btnSocketDisconnect").addEventListener("click", () => { 
+    if (socket) socket.disconnect(); 
+    $("btnSocketConnect").disabled = false; 
+    $("btnSocketDisconnect").disabled = true; 
+    $("socketPill").className = "pill"; 
+    $("socketTxt").textContent = "Server: Off"; 
+    audienceCount = 0; 
+    updateAudienceCount(); 
+  });
+
   function updateAudienceCount() { $("audienceTxt").textContent = `Audience: ${audienceCount}`; }
   function broadcastVerdict(result, live) { if (!socket || !socket.connected) return; const payload = { verdict: result.genuine ? "GENUINE" : "SUSPECT", mode: result.mode, drug: result.drug ? result.drug.name : "Unknown Item", brand: result.drug ? result.drug.brand : "Unknown", distance: result.distance, threshold: GENUINE_THRESHOLD, mismatch: result.mismatch, actualFound: result.mismatch ? result.actualDrug.name : null, live, timestamp: Date.now() }; socket.emit("verdict", payload); }
   
@@ -215,7 +256,12 @@
   });
   $("btnSerialStop").addEventListener("click", async () => { keepReading = false; isScanning = false; clearInterval(countdownInterval); clearTimeout(scanTimer); try { if (serialReader) await serialReader.cancel(); if (serialPort) await serialPort.close(); } catch(e) {} serialPort = null; serialReader = null; $("serialPill").className = "pill"; $("serialTxt").textContent = "Serial: Off"; $("btnSerial").disabled = false; $("btnSerialStop").disabled = true; $("btnScan").disabled = true; buffer.length = 0; });
   async function readSerial() { const decoder = new TextDecoderStream(); serialPort.readable.pipeTo(decoder.writable); serialReader = decoder.readable.getReader(); let buf = ""; try { while (keepReading) { const { value, done } = await serialReader.read(); if (done) break; buf += value; const lines = buf.split("\n"); buf = lines.pop(); lines.forEach(parseLine); } } catch(e) {} finally { serialReader.releaseLock(); } }
-  initializeDropdown();
+  
+  // Automate network loop verification on layout boot
+  window.addEventListener('DOMContentLoaded', () => {
+    initializeDropdown();
+    initSocketLink("https://atom-5r4p.onrender.com");
+  });
 </script>
 </body>
 </html>
