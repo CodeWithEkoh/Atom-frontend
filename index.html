@@ -88,7 +88,17 @@
   let currentPollingInterval = 4000; 
 
   function syncWithAtomEngine() {
-    fetch('https://atom-5r4p.onrender.com/api/latest-scan', { cache: "no-store" })
+    // Explicit HTTP POST implementation blocks intermediaries from forcing cached payloads
+    fetch('https://atom-5r4p.onrender.com/api/latest-scan', { 
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      body: JSON.stringify({ ping: true })
+    })
       .then(res => {
         if (!res.ok) throw new Error("Throttled");
         return res.json();
@@ -121,7 +131,7 @@
           if (data.liveData) {
             updateTelemetryUI(data.liveData);
           }
-          adjustPollingInterval(1000); // 1-second polls during testing to keep values ultra-responsive
+          adjustPollingInterval(1000); 
         } 
         
         // STATE BRANCH 3: Final Target Acquired & Frozen
@@ -146,7 +156,6 @@
           
           $("verdictMeta").textContent = `Distance: ${payload.distance} | Threshold: ${payload.threshold}`;
           
-          // Safety verification on object arrays
           if (payload.live) {
             updateTelemetryUI(payload.live);
           } else if (data.liveData) {
