@@ -85,23 +85,21 @@
 <script>
   const $ = id => document.getElementById(id);
   let pollTracker = null;
-  let currentPollingInterval = 4000; // Default state ping timer
+  let currentPollingInterval = 4000; 
 
   function syncWithAtomEngine() {
-    // Hits the lightweight state snapshot variable route on your Express server
     fetch('https://atom-5r4p.onrender.com/api/latest-scan', { cache: "no-store" })
       .then(res => {
         if (!res.ok) throw new Error("Throttled");
         return res.json();
       })
       .then(data => {
-        // Toggle header connectivity badge green
         $("socketPill").className = "pill ok"; 
         $("socketTxt").textContent = "Pipeline: Connected";
 
         const badge = $("verdictBadge");
 
-        // STATE BRANCH 1: System is idling waiting for hardware activation
+        // STATE BRANCH 1: System Idling
         if (data.state === "IDLE") {
           $("modeIndicator").style.display = "none";
           badge.className = "verdict-badge idle"; 
@@ -109,10 +107,10 @@
           $("verdictMeta").textContent = "The operator has not initiated a validation sequence yet.";
           
           resetTelemetry();
-          adjustPollingInterval(4000); // Relaxed checking cycle
+          adjustPollingInterval(4000); 
         } 
         
-        // STATE BRANCH 2: Scan actively processing on stage
+        // STATE BRANCH 2: Actively Scanning
         else if (data.state === "SCANNING") {
           $("modeIndicator").style.display = "inline-flex";
           $("modeIndicator").textContent = data.mode === "AUTO_DETECT" ? "✨ Auto-Detect (AI Mode) Active" : "🔍 Targeted Audit Verification Active";
@@ -123,40 +121,44 @@
           if (data.liveData) {
             updateTelemetryUI(data.liveData);
           }
-          adjustPollingInterval(1500); // Tighten check cycle during scan to catch changes fast
+          adjustPollingInterval(1000); // 1-second polls during testing to keep values ultra-responsive
         } 
         
-        // STATE BRANCH 3: Verdict Calculated! Lock layout and kill loop.
-        else if (data.state === "VERDICT_READY") {
+        // STATE BRANCH 3: Final Target Acquired & Frozen
+        else if (data.state === "VERDICT_READY" && data.payload) {
           $("modeIndicator").style.display = "inline-flex";
+          const payload = data.payload;
           
-          if (data.payload.mode === "AUTO") {
+          if (payload.mode === "AUTO") {
             $("modeIndicator").textContent = "✨ Auto-Detect Result";
-            badge.className = `verdict-badge ${data.payload.verdict === 'GENUINE' ? "genuine" : "suspect"}`;
-            badge.textContent = data.payload.verdict === 'GENUINE' ? `✓ DETECTED — ${data.payload.drug}` : `✗ UNKNOWN — Counterfeit Flagged`;
+            badge.className = `verdict-badge ${payload.verdict === 'GENUINE' ? "genuine" : "suspect"}`;
+            badge.textContent = payload.verdict === 'GENUINE' ? `✓ DETECTED — ${payload.drug}` : `✗ UNKNOWN — Counterfeit Flagged`;
           } else {
             $("modeIndicator").textContent = "🔍 Targeted Audit Result";
-            if (data.payload.mismatch) { 
+            if (payload.mismatch) { 
               badge.className = "verdict-badge suspect"; 
               badge.textContent = `⚠️ MISMATCH — Box Swapped`; 
             } else { 
-              badge.className = `verdict-badge ${data.payload.verdict === 'GENUINE' ? "genuine" : "suspect"}`; 
-              badge.textContent = data.payload.verdict === 'GENUINE' ? `✓ VERIFIED — Authentic` : `✗ SUSPECT — Profile Anomaly`; 
+              badge.className = `verdict-badge ${payload.verdict === 'GENUINE' ? "genuine" : "suspect"}`; 
+              badge.textContent = payload.verdict === 'GENUINE' ? `✓ VERIFIED — Authentic` : `✗ SUSPECT — Profile Anomaly`; 
             }
           }
           
-          $("verdictMeta").textContent = `Distance: ${data.payload.distance} | Threshold: ${data.payload.threshold}`;
-          if (data.payload.live) {
-            updateTelemetryUI(data.payload.live);
+          $("verdictMeta").textContent = `Distance: ${payload.distance} | Threshold: ${payload.threshold}`;
+          
+          // Safety verification on object arrays
+          if (payload.live) {
+            updateTelemetryUI(payload.live);
+          } else if (data.liveData) {
+            updateTelemetryUI(data.liveData);
           }
 
-          // THE COMPLETE SAFEFALL: Terminate timeout sequence entirely.
+          // TERMINATION LOCKOUT POINT
           clearTimeout(pollTracker);
           console.log("🔒 Target State Locked. Connection pipe safely released.");
         }
       })
       .catch(err => {
-        // Safe fault fallback for unexpected connection spikes
         $("socketPill").className = "pill connecting"; 
         $("socketTxt").textContent = "Pipeline: Reconnecting...";
         adjustPollingInterval(4000);
@@ -191,7 +193,6 @@
     pollTracker = setTimeout(syncWithAtomEngine, currentPollingInterval);
   }
 
-  // Trigger loop cycle immediately on page mount
   window.addEventListener('DOMContentLoaded', syncWithAtomEngine);
 </script>
 </body>
