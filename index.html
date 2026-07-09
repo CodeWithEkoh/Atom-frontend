@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Atom — Live Audience Display</title>
+<title>Atom — Projector Live Display</title>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -21,7 +22,7 @@
   .pill { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); }
   .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--slate); }
   .pill.ok   .dot { background: var(--green); box-shadow: 0 0 5px var(--green); }
-  .pill.ok        { border-color: rgba(22,163,74,0.35); }
+  .pill.ok       { border-color: rgba(22,163,74,0.35); }
   .pill.connecting .dot { background: var(--amber); }
   .pill.connecting     { border-color: rgba(217,119,6,0.35); }
   main { flex: 1; padding: 22px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -46,17 +47,18 @@
   .color-swatch { height: 70px; border-radius: 10px; background: #1E293B; border: 1px solid var(--border); margin-top: 12px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: rgba(255,255,255,0.3); transition: background 0.3s; }
   .log-card { display: flex; flex-direction: column; }
   .log { background: rgba(0,0,0,0.35); border-radius: 8px; padding: 10px 12px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 10px; color: rgba(255,255,255,0.35); grid-column: 1 / -1; }
+  .log .ll { margin-bottom: 2px; } .log .ok { color: #4ADE80; } .log .err { color: #F87171; }
 
   @media (max-width: 768px) {
     main { grid-template-columns: 1fr; padding: 14px; gap: 12px; }
-    .log-card { display: none !important; }
+    .log-card { display: none !important; } /* Removes Execution Logs card on Mobile View */
   }
 </style>
 </head>
 <body>
 <header>
-  <div class="brand"> <div class="brand-icon">💊</div><div><h1>Atom — Mobile Feed</h1><sub>Decentralized Live Broadcast Monitor Feed</sub></div></div>
-  <div class="pills"><div class="pill" id="socketPill"><div class="dot"></div><span id="socketTxt">Link: Off</span></div></div>
+  <div class="brand"> <div class="brand-icon">💊</div><div><h1>Atom — Projector View</h1><sub>Decentralized Live Broadcast Monitor Feed</sub></div></div>
+  <div class="pills"><div class="pill" id="socketPill"><div class="dot"></div><span id="socketTxt">Pipeline: Off</span></div></div>
 </header>
 <main>
   <div class="card verdict-card">
@@ -81,129 +83,53 @@
     <div class="log" id="logBox" style="flex: 1; height: auto;"></div>
   </div>
 </main>
-
 <script>
   const $ = id => document.getElementById(id);
-  let pollTracker = null;
+  let finalVerdictReceived = false;
 
-  function syncWithAtomEngine() {
-    // POST syntax combined with runtime query parameters stops network proxy caching cold
-    fetch('/api/latest-scan?cb=' + Date.now(), { 
-      method: "POST",
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      },
-      body: JSON.stringify({ ping: true })
-    })
-      .then(res => {
-        if (!res.ok) throw new Error("Throttled");
-        return res.json();
-      })
-      .then(data => {
-        $("socketPill").className = "pill ok"; 
-        $("socketTxt").textContent = "Pipeline: Connected";
+  const socket = io("https://atom-5r4p.onrender.com", { query: { role: "audience" }, transports: ["websocket"] });
+  $("socketPill").className = "pill connecting"; $("socketTxt").textContent = "Pipeline: Connecting...";
 
-        const badge = $("verdictBadge");
+  socket.on("connect", () => { $("socketPill").className = "pill ok"; $("socketTxt").textContent = "Pipeline: Live Mirror Link"; });
+  socket.on("disconnect", () => { $("socketPill").className = "pill"; $("socketTxt").textContent = "Pipeline: Off"; resetToIdle(); });
 
-        // STATE 1: System Idling
-        if (data.state === "IDLE") {
-          $("modeIndicator").style.display = "none";
-          badge.className = "verdict-badge idle"; 
-          badge.textContent = "⬡ Awaiting Scan Trigger";
-          $("verdictMeta").textContent = "The operator has not initiated a validation sequence yet.";
-          
-          resetTelemetry();
-          adjustPollingInterval(3500); // Low footprint check when idle
-        } 
-        
-        // STATE 2: Actively Scanning
-        else if (data.state === "SCANNING") {
-          $("modeIndicator").style.display = "inline-flex";
-          $("modeIndicator").textContent = data.mode === "AUTO_DETECT" ? "✨ Auto-Detect (AI Mode) Active" : "🔍 Targeted Audit Verification Active";
-          
-          badge.className = "verdict-badge scanning"; 
-          badge.textContent = data.timeLeft > 0 ? `⏳ Scanning... ${data.timeLeft}s remaining` : "⏳ Processing Matrix...";
-          
-          if (data.liveData) {
-            updateTelemetryUI(data.liveData);
-          }
-          adjustPollingInterval(1000); // Tight check cycle to display real-time counters
-        } 
-        
-        // STATE 3: Final Target Acquired & Frozen
-        else if (data.state === "VERDICT_READY" && data.payload) {
-          $("modeIndicator").style.display = "inline-flex";
-          const payload = data.payload;
-          
-          if (payload.mode === "AUTO") {
-            $("modeIndicator").textContent = "✨ Auto-Detect Result";
-            badge.className = `verdict-badge ${payload.verdict === 'GENUINE' ? "genuine" : "suspect"}`;
-            badge.textContent = payload.verdict === 'GENUINE' ? `✓ DETECTED — ${payload.drug}` : `✗ UNKNOWN — Counterfeit Flagged`;
-          } else {
-            $("modeIndicator").textContent = "🔍 Targeted Audit Result";
-            if (payload.mismatch) { 
-              badge.className = "verdict-badge suspect"; 
-              badge.textContent = `⚠️ MISMATCH — Box Swapped`; 
-            } else { 
-              badge.className = `verdict-badge ${payload.verdict === 'GENUINE' ? "genuine" : "suspect"}`; 
-              badge.textContent = payload.verdict === 'GENUINE' ? `✓ VERIFIED — Authentic` : `✗ SUSPECT — Profile Anomaly`; 
-            }
-          }
-          
-          $("verdictMeta").textContent = `Distance: ${payload.distance} | Threshold: ${payload.threshold}`;
-          
-          if (payload.live) {
-            updateTelemetryUI(payload.live);
-          } else if (data.liveData) {
-            updateTelemetryUI(data.liveData);
-          }
+  socket.on("operator_scanning", (data) => {
+    finalVerdictReceived = false;
+    $("modeIndicator").style.display = "inline-flex";
+    $("modeIndicator").textContent = (data && data.mode === "AUTO_DETECT") ? "✨ Auto-Detect (AI Mode) Active" : "🔍 Targeted Audit Verification Active";
+    $("verdictBadge").className = "verdict-badge scanning"; $("verdictBadge").textContent = "⏳ Running Molecular Scan (10s)...";
+  });
 
-          // TERMINATION LOCKOUT
-          clearTimeout(pollTracker);
-          console.log("🔒 Target State Locked. Execution loop terminated cleanly.");
-        }
-        else {
-          adjustPollingInterval(3000);
-        }
-      })
-      .catch(err => {
-        $("socketPill").className = "pill connecting"; 
-        $("socketTxt").textContent = "Pipeline: Reconnecting...";
-        adjustPollingInterval(4000);
-      });
-  }
+  socket.on("scan_countdown", (data) => {
+    if (finalVerdictReceived || data.timeLeft <= 0) return;
+    $("verdictBadge").textContent = `⏳ Scanning... ${data.timeLeft}s remaining`;
+    if (data.liveData) {
+      const { R, G, B, C } = data.liveData;
+      $("vR").textContent = R; $("vG").textContent = G; $("vB").textContent = B; $("vC").textContent = C;
+      const max = Math.max(C, 1);
+      $("bR").style.width = `${Math.min(R / max * 100, 100)}%`; $("bG").style.width = `${Math.min(G / max * 100, 100)}%`; $("bB").style.width = `${Math.min(B / max * 100, 100)}%`; $("bC").style.width = `${Math.min(C / 65535 * 100, 100)}%`;
+      const sc = Math.min(255 / max, 1) * (C / 65535 * 6 + 0.5);
+      const r8 = Math.min(Math.round(R * sc), 255); const g8 = Math.min(Math.round(G * sc), 255); const b8 = Math.min(Math.round(B * sc), 255);
+      $("swatch").style.background = `rgb(${r8},${g8},${b8})`; $("swatch").textContent = `rgb(${r8}, ${g8}, ${b8})`;
+    }
+  });
 
-  function updateTelemetryUI(liveData) {
-    const { R, G, B, C } = liveData;
-    $("vR").textContent = R; $("vG").textContent = G; $("vB").textContent = B; $("vC").textContent = C;
-    const max = Math.max(C, 1);
-    $("bR").style.width = `${Math.min(R / max * 100, 100)}%`; 
-    $("bG").style.width = `${Math.min(G / max * 100, 100)}%`; 
-    $("bB").style.width = `${Math.min(B / max * 100, 100)}%`; 
-    $("bC").style.width = `${Math.min(C / 65535 * 100, 100)}%`; 
-    const sc = Math.min(255 / max, 1) * (C / 65535 * 6 + 0.5);
-    const r8 = Math.min(Math.round(R * sc), 255); 
-    const g8 = Math.min(Math.round(G * sc), 255); 
-    const b8 = Math.min(Math.round(B * sc), 255);
-    $("swatch").style.background = `rgb(${r8},${g8},${b8})`; 
-    $("swatch").textContent = `rgb(${r8}, ${g8}, ${b8})`;
-  }
+  socket.on("verdict", (data) => {
+    finalVerdictReceived = true;
+    const badge = $("verdictBadge"); $("modeIndicator").style.display = "inline-flex";
+    if (data.mode === "AUTO") {
+      $("modeIndicator").textContent = "✨ Auto-Detect Result";
+      badge.className = `verdict-badge ${data.verdict === 'GENUINE' ? "genuine" : "suspect"}`;
+      badge.textContent = data.verdict === 'GENUINE' ? `✓ DETECTED — ${data.drug}` : `✗ UNKNOWN — Counterfeit Flagged`;
+    } else {
+      $("modeIndicator").textContent = "🔍 Targeted Audit Result";
+      if (data.mismatch) { badge.className = "verdict-badge suspect"; badge.textContent = `⚠️ MISMATCH — Box Swapped`; } 
+      else { badge.className = `verdict-badge ${data.verdict === 'GENUINE' ? "genuine" : "suspect"}`; badge.textContent = data.verdict === 'GENUINE' ? `✓ VERIFIED — Authentic` : `✗ SUSPECT — Profile Anomaly`; }
+    }
+    $("verdictMeta").textContent = `Distance: ${data.distance} | Threshold: ${data.threshold}`;
+  });
 
-  function resetTelemetry() {
-    $("vR").textContent = "—"; $("vG").textContent = "—"; $("vB").textContent = "—"; $("vC").textContent = "—";
-    $("bR").style.width = "0%"; $("bG").style.width = "0%"; $("bB").style.width = "0%"; $("bC").style.width = "0%";
-    $("swatch").style.background = "#1E293B"; $("swatch").textContent = "Spectral Preview Window";
-  }
-
-  function adjustPollingInterval(newTime) {
-    clearTimeout(pollTracker);
-    pollTracker = setTimeout(syncWithAtomEngine, newTime);
-  }
-
-  window.addEventListener('DOMContentLoaded', syncWithAtomEngine);
+  function resetToIdle() { finalVerdictReceived = false; $("modeIndicator").style.display = "none"; $("verdictBadge").className = "verdict-badge idle"; $("verdictBadge").textContent = "⬡ Awaiting Scan Trigger"; }
 </script>
 </body>
 </html>
